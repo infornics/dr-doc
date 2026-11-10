@@ -1,27 +1,11 @@
-"use client";
-
 import {
   ConversionPresets,
-  ConverterFileList,
-  Dropzone,
+  ConverterSection,
 } from "@/features/converter/components";
-import { useConverter } from "@/features/converter/hooks/useConverter";
 
 export default function Home() {
-  const {
-    items,
-    isProcessing,
-    addFiles,
-    removeFile,
-    clearAll,
-    updateTargetFormat,
-    setGlobalTargetFormat,
-    convertItem,
-    convertAll,
-  } = useConverter();
-
   return (
-    <main className="min-h-[calc(100vh-4rem)] px-4 py-10 sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100vh-4rem)] px-4 py-10 sm:px-6 lg:px-8 space-y-10">
       <div className="mx-auto max-w-2xl text-center space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary">
           <span className="size-1.5 rounded-full bg-primary animate-pulse" />
@@ -36,21 +20,8 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Main Interactive Converter Box */}
-      <div className="mx-auto max-w-4xl space-y-6">
-        <Dropzone onFilesSelected={addFiles} disabled={isProcessing} />
-
-        <ConverterFileList
-          items={items}
-          isProcessing={isProcessing}
-          onRemove={removeFile}
-          onFormatChange={updateTargetFormat}
-          onConvert={convertItem}
-          onConvertAll={convertAll}
-          onClearAll={clearAll}
-          onGlobalFormatChange={setGlobalTargetFormat}
-        />
-      </div>
+      {/* Main Interactive Converter Box (Client Component) */}
+      <ConverterSection />
 
       {/* Presets Grid */}
       <div className="mx-auto max-w-5xl pt-4">
