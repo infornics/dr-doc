@@ -37,7 +37,7 @@ export default function Header() {
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+              <span className="font-heading text-base font-semibold tracking-tight text-foreground sm:text-lg">
                 Dr. Doc
               </span>
               <span className="-mt-1 text-[10px] font-medium text-muted-foreground">
