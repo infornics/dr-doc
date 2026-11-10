@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import {
+  Alert02Icon,
   ArrowRight01Icon,
   CheckmarkCircle02Icon,
   Delete02Icon,
@@ -45,6 +46,12 @@ export default function ConverterRow({
               {item.sourceFormat}
             </span>
           </div>
+          {item.error && (
+            <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
+              <HugeiconsIcon icon={Alert02Icon} className="size-3" />
+              <span>{item.error}</span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -76,7 +83,7 @@ export default function ConverterRow({
 
         {/* Status / Convert / Download Button */}
         <div className="flex items-center gap-1.5">
-          {item.status === "idle" && (
+          {(item.status === "idle" || item.status === "error") && (
             <Button
               size="sm"
               variant="secondary"
@@ -84,7 +91,7 @@ export default function ConverterRow({
               disabled={disabled}
               className="gap-1 h-8 px-3"
             >
-              <span>Convert</span>
+              <span>{item.status === "error" ? "Retry" : "Convert"}</span>
               <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
             </Button>
           )}
