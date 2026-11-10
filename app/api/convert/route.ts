@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------
-    // CASE 2: IMAGE TO IMAGE (PNG, JPG, WEBP, AVIF, TIFF)
+    // CASE 2: IMAGE TO IMAGE (PNG, JPG, WEBP, AVIF, TIFF, SVG)
     // -------------------------------------------------------------
     if (isSourceImage && isTargetImage) {
       const img = sharp(buffer, { failOn: "none" }).rotate();
@@ -98,6 +98,16 @@ export async function POST(req: NextRequest) {
         convertedBuffer = await img.avif().toBuffer();
       } else if (format === "tiff") {
         convertedBuffer = await img.tiff().toBuffer();
+      } else if (format === "svg") {
+        // Embed image inside SVG container
+        const meta = await img.metadata();
+        const w = meta.width || 400;
+        const h = meta.height || 400;
+        const b64 = (await img.png().toBuffer()).toString("base64");
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+  <image width="${w}" height="${h}" href="data:image/png;base64,${b64}" />
+</svg>`;
+        return createBinaryResponse(Buffer.from(svgContent, "utf8"), `${baseName}.svg`, "image/svg+xml");
       } else {
         convertedBuffer = await img.toFormat(format as keyof FormatEnum).toBuffer();
       }
@@ -157,7 +167,7 @@ export async function POST(req: NextRequest) {
     // -------------------------------------------------------------
     // CASE 4: PDF TO TEXT / DOCX
     // -------------------------------------------------------------
-    if (ext === "pdf" && (targetFormat === "txt" || targetFormat === "docx")) {
+    if (ext === "pdf" && (targetFormat === "txt" || targetFormat === "docx" || targetFormat === "doc")) {
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "drdoc-pdftotext-"));
       try {
         const inputPdfPath = path.join(tmpDir, "input.pdf");
@@ -197,6 +207,17 @@ export async function POST(req: NextRequest) {
         });
 
         const docxBuffer = await Packer.toBuffer(docx);
+
+        if (targetFormat === "doc") {
+          // Legacy doc conversion via LibreOffice
+          const docxPath = path.join(tmpDir, "out.docx");
+          await fs.writeFile(docxPath, docxBuffer);
+          await execAsync(`libreoffice --headless --convert-to doc "${docxPath}" --outdir "${tmpDir}"`);
+          const docPath = path.join(tmpDir, "out.doc");
+          const docData = await fs.readFile(docPath);
+          return createBinaryResponse(docData, `${baseName}.doc`, "application/msword");
+        }
+
         return createBinaryResponse(
           docxBuffer,
           `${baseName}.docx`,
@@ -208,8 +229,53 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------
-    // CASE 5: DOCUMENTS TO PDF / DOCX / TXT VIA LIBREOFFICE
-    // Supports docx, doc, txt, rtf, odt, xlsx, pptx -> pdf
+    // CASE 5: EPUB SOURCE HANDLING
+    // Extract text from EPUB and convert to PDF or TXT
+    // -------------------------------------------------------------
+    if (ext === "epub") {
+      try {
+        const zip = await JSZip.loadAsync(buffer);
+        let accumulatedText = "";
+
+        const htmlFiles = Object.keys(zip.files).filter(
+          (k) => k.endsWith(".xhtml") || k.endsWith(".html") || k.endsWith(".htm")
+        );
+
+        for (const htmlFile of htmlFiles) {
+          const raw = await zip.files[htmlFile].async("text");
+          // Strip HTML tags to obtain pure readable text
+          const text = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+          if (text) accumulatedText += `${text}\n\n`;
+        }
+
+        if (!accumulatedText) {
+          accumulatedText = "Empty EPUB Document";
+        }
+
+        if (targetFormat === "txt") {
+          return createBinaryResponse(Buffer.from(accumulatedText, "utf8"), `${baseName}.txt`, "text/plain");
+        }
+
+        // EPUB to PDF via text compilation
+        const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "drdoc-epubtopdf-"));
+        try {
+          const textPath = path.join(tmpDir, "book.txt");
+          await fs.writeFile(textPath, accumulatedText, "utf8");
+          await execAsync(`libreoffice --headless --convert-to pdf "${textPath}" --outdir "${tmpDir}"`);
+          const pdfPath = path.join(tmpDir, "book.pdf");
+          const pdfData = await fs.readFile(pdfPath);
+          return createBinaryResponse(pdfData, `${baseName}.pdf`, "application/pdf");
+        } finally {
+          await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+        }
+      } catch (err: unknown) {
+        throw new Error(err instanceof Error ? err.message : "Failed to process EPUB");
+      }
+    }
+
+    // -------------------------------------------------------------
+    // CASE 6: DOCUMENTS TO PDF / DOCX / DOC / RTF / ODT / EPUB / CSV
+    // Via LibreOffice engine
     // -------------------------------------------------------------
     const libreOfficeSources = ["docx", "doc", "txt", "rtf", "odt", "xlsx", "pptx", "csv"];
     if (libreOfficeSources.includes(ext) || targetFormat === "pdf") {
@@ -277,6 +343,8 @@ function getMimeType(format: string): string {
       return "application/vnd.oasis.opendocument.text";
     case "xlsx":
       return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    case "csv":
+      return "text/csv";
     case "png":
       return "image/png";
     case "jpg":
@@ -284,6 +352,10 @@ function getMimeType(format: string): string {
       return "image/jpeg";
     case "webp":
       return "image/webp";
+    case "svg":
+      return "image/svg+xml";
+    case "epub":
+      return "application/epub+zip";
     case "zip":
       return "application/zip";
     default:
