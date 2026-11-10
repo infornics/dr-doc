@@ -19,6 +19,7 @@ export type ConverterItem = {
   status: FileStatus;
   progress: number;
   downloadUrl?: string;
+  downloadFilename?: string;
   error?: string;
 };
 

@@ -106,6 +106,7 @@ export const useConverterStore = create<ConverterStoreState>((set, get) => ({
                 status: "completed",
                 progress: 100,
                 downloadUrl,
+                downloadFilename: result.filename,
               }
             : i
         ),

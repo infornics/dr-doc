@@ -7,7 +7,8 @@ export function getConverterRowData(item: ConverterRowProps["item"]) {
     item.sourceFormat.toLowerCase(),
   );
   const formattedSize = formatFileSize(item.size);
-  const downloadFileName = `${item.name.replace(/\.[^/.]+$/, "")}.${item.targetFormat}`;
+  const downloadFileName =
+    item.downloadFilename || `${item.name.replace(/\.[^/.]+$/, "")}.${item.targetFormat}`;
 
   return {
     availableFormats,

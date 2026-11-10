@@ -10,7 +10,8 @@ export function getFileListSummary(items: ConverterFileListProps["items"]) {
       if (item.downloadUrl) {
         const link = document.createElement("a");
         link.href = item.downloadUrl;
-        link.download = `${item.name.replace(/\.[^/.]+$/, "")}.${item.targetFormat}`;
+        link.download =
+          item.downloadFilename || `${item.name.replace(/\.[^/.]+$/, "")}.${item.targetFormat}`;
         link.click();
       }
     });
