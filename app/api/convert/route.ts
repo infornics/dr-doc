@@ -7,7 +7,7 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { ZipArchive } from "archiver";
+import JSZip from "jszip";
 
 const execAsync = promisify(exec);
 
@@ -138,19 +138,16 @@ export async function POST(req: NextRequest) {
           return createBinaryResponse(singleImg, `${baseName}.${imgExt}`, `image/${imgExt}`);
         }
 
-        // If multiple pages, zip them together using ZipArchive
-        const archive = new ZipArchive({ zlib: { level: 9 } });
-        const zipChunks: Buffer[] = [];
-        archive.on("data", (chunk: Buffer) => zipChunks.push(chunk));
+        // If multiple pages, zip them together using JSZip
+        const zip = new JSZip();
 
         for (let i = 0; i < files.length; i++) {
           const pageFile = files[i];
           const pageBuffer = await fs.readFile(path.join(tmpDir, pageFile));
-          archive.append(pageBuffer, { name: `${baseName}-page-${i + 1}.${imgExt}` });
+          zip.file(`${baseName}-page-${i + 1}.${imgExt}`, pageBuffer);
         }
 
-        await archive.finalize();
-        const zipBuffer = Buffer.concat(zipChunks);
+        const zipBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
         return createBinaryResponse(zipBuffer, `${baseName}-images.zip`, "application/zip");
       } finally {
         await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
