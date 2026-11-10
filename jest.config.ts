@@ -6,7 +6,7 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
-  testMatch: ["**/__tests__/**/*.test.ts"],
+  testMatch: ["<rootDir>/features/**/tests/**/*.test.ts"],
   transformIgnorePatterns: [
     "/node_modules/(?!(archiver|bare-buffer|bare-events|bare-fs|bare-os|bare-path)/)",
   ],
