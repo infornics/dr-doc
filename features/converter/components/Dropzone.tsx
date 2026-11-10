@@ -8,11 +8,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
-
-interface DropzoneProps {
-  onFilesSelected: (files: FileList | File[]) => void;
-  disabled?: boolean;
-}
+import { DropzoneProps } from "../types/dropzone.types";
 
 export default function Dropzone({ onFilesSelected, disabled }: DropzoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);

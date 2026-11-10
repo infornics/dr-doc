@@ -1,4 +1,4 @@
-import { ConversionFormat, PresetConversion } from "./types";
+import { ConversionFormat, PresetConversion } from "./types/converter.types";
 
 export const SUPPORTED_FORMATS: ConversionFormat[] = [
   // Documents
@@ -8,7 +8,11 @@ export const SUPPORTED_FORMATS: ConversionFormat[] = [
   { extension: "txt", label: "Plain Text (.txt)", category: "document" },
   { extension: "rtf", label: "Rich Text (.rtf)", category: "document" },
   { extension: "odt", label: "OpenDocument (.odt)", category: "document" },
-  { extension: "xlsx", label: "Excel Spreadsheet (.xlsx)", category: "document" },
+  {
+    extension: "xlsx",
+    label: "Excel Spreadsheet (.xlsx)",
+    category: "document",
+  },
   { extension: "pptx", label: "PowerPoint (.pptx)", category: "document" },
 
   // Images
@@ -96,4 +100,3 @@ export const POPULAR_PRESETS: PresetConversion[] = [
     iconType: "pdf",
   },
 ];
-

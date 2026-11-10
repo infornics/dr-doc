@@ -11,16 +11,8 @@ import {
   Loading03Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ConverterItem } from "../types";
+import { ConverterRowProps } from "../types/converterRow.types";
 import { formatFileSize, getAvailableTargetFormats } from "../utils";
-
-interface ConverterRowProps {
-  item: ConverterItem;
-  onRemove: (id: string) => void;
-  onFormatChange: (id: string, format: string) => void;
-  onConvert: (id: string) => void;
-  disabled?: boolean;
-}
 
 export default function ConverterRow({
   item,

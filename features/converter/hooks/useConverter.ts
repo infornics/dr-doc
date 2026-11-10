@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ConverterItem } from "../types";
+import { ConverterItem } from "../types/converter.types";
 import { getDefaultTargetFormat, getFileExtension } from "../utils";
 
 export function useConverter() {
@@ -37,32 +37,26 @@ export function useConverter() {
 
   const updateTargetFormat = useCallback((id: string, targetFormat: string) => {
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, targetFormat } : item
-      )
+      prev.map((item) => (item.id === id ? { ...item, targetFormat } : item)),
     );
   }, []);
 
   const setGlobalTargetFormat = useCallback((targetFormat: string) => {
-    setItems((prev) =>
-      prev.map((item) => ({ ...item, targetFormat }))
-    );
+    setItems((prev) => prev.map((item) => ({ ...item, targetFormat })));
   }, []);
 
   const convertItem = useCallback(async (id: string) => {
     setItems((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, status: "converting", progress: 15 } : item
-      )
+        item.id === id ? { ...item, status: "converting", progress: 15 } : item,
+      ),
     );
 
     // Simulated conversion progress with realistic increments
     for (let p = 30; p <= 90; p += 30) {
       await new Promise((res) => setTimeout(res, 350));
       setItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, progress: p } : item
-        )
+        prev.map((item) => (item.id === id ? { ...item, progress: p } : item)),
       );
     }
 
@@ -72,7 +66,7 @@ export function useConverter() {
       prev.map((item) => {
         if (item.id === id) {
           const fakeBlobUrl = URL.createObjectURL(
-            new Blob([item.file], { type: "application/octet-stream" })
+            new Blob([item.file], { type: "application/octet-stream" }),
           );
           return {
             ...item,
@@ -82,12 +76,14 @@ export function useConverter() {
           };
         }
         return item;
-      })
+      }),
     );
   }, []);
 
   const convertAll = useCallback(async () => {
-    const idleItems = items.filter((item) => item.status === "idle" || item.status === "error");
+    const idleItems = items.filter(
+      (item) => item.status === "idle" || item.status === "error",
+    );
     if (idleItems.length === 0) return;
 
     setIsProcessing(true);

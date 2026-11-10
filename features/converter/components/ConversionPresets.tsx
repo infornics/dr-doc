@@ -7,10 +7,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { POPULAR_PRESETS } from "../constants";
-
-interface ConversionPresetsProps {
-  onSelectPreset?: (presetId: string) => void;
-}
+import { ConversionPresetsProps } from "../types/conversionPresets.types";
 
 export default function ConversionPresets({
   onSelectPreset,

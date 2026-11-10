@@ -8,19 +8,8 @@ import {
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ConverterItem } from "../types";
+import { ConverterFileListProps } from "../types/converterFileList.types";
 import ConverterRow from "./ConverterRow";
-
-interface ConverterFileListProps {
-  items: ConverterItem[];
-  isProcessing: boolean;
-  onRemove: (id: string) => void;
-  onFormatChange: (id: string, format: string) => void;
-  onConvert: (id: string) => void;
-  onConvertAll: () => void;
-  onClearAll: () => void;
-  onGlobalFormatChange: (format: string) => void;
-}
 
 export default function ConverterFileList({
   items,
