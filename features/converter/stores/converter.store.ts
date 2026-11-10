@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { ConverterItem } from "../types/converter.types";
 import { getDefaultTargetFormat, getFileExtension } from "../utils";
-import { convertImageToPdfApi } from "../services/converter.service";
+import { convertFileApi } from "../services/converter.service";
 
 interface ConverterStoreState {
   items: ConverterItem[];
@@ -80,71 +80,36 @@ export const useConverterStore = create<ConverterStoreState>((set, get) => ({
 
     set((state) => ({
       items: state.items.map((i) =>
-        i.id === id ? { ...i, status: "converting", progress: 10, error: undefined } : i
+        i.id === id ? { ...i, status: "converting", progress: 15, error: undefined } : i
       ),
     }));
 
     try {
-      const isImage = ["png", "jpg", "jpeg", "webp", "svg", "heic", "avif"].includes(
-        item.sourceFormat.toLowerCase()
-      );
-
-      if (isImage && item.targetFormat.toLowerCase() === "pdf") {
-        // Real API conversion
-        const result = await convertImageToPdfApi(item.file, (progress) => {
-          if (progress.total) {
-            const calculated = Math.round((progress.loaded / progress.total) * 70);
-            set((state) => ({
-              items: state.items.map((i) =>
-                i.id === id ? { ...i, progress: Math.min(75, 10 + calculated) } : i
-              ),
-            }));
-          }
-        });
-
-        // Conversion completed
-        const downloadUrl = URL.createObjectURL(result.blob);
-
-        set((state) => ({
-          items: state.items.map((i) =>
-            i.id === id
-              ? {
-                  ...i,
-                  status: "completed",
-                  progress: 100,
-                  downloadUrl,
-                }
-              : i
-          ),
-        }));
-      } else {
-        // Fallback simulated conversion for non image-to-pdf routes
-        for (let p = 30; p <= 90; p += 30) {
-          await new Promise((res) => setTimeout(res, 300));
+      const result = await convertFileApi(item.file, item.targetFormat, (progress) => {
+        if (progress.total) {
+          const calculated = Math.round((progress.loaded / progress.total) * 75);
           set((state) => ({
             items: state.items.map((i) =>
-              i.id === id ? { ...i, progress: p } : i
+              i.id === id ? { ...i, progress: Math.min(80, 15 + calculated) } : i
             ),
           }));
         }
+      });
 
-        const fakeBlobUrl = URL.createObjectURL(
-          new Blob([item.file], { type: "application/octet-stream" })
-        );
+      const downloadUrl = URL.createObjectURL(result.blob);
 
-        set((state) => ({
-          items: state.items.map((i) =>
-            i.id === id
-              ? {
-                  ...i,
-                  status: "completed",
-                  progress: 100,
-                  downloadUrl: fakeBlobUrl,
-                }
-              : i
-          ),
-        }));
-      }
+      set((state) => ({
+        items: state.items.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                status: "completed",
+                progress: 100,
+                downloadUrl,
+              }
+            : i
+        ),
+      }));
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to convert file";
@@ -170,4 +135,3 @@ export const useConverterStore = create<ConverterStoreState>((set, get) => ({
     set({ isProcessing: false });
   },
 }));
-

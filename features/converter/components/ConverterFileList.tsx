@@ -2,6 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Delete01Icon,
   Download02Icon,
   Loading03Icon,
@@ -48,31 +55,43 @@ export default function ConverterFileList(props: ConverterFileListProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Quick convert-all dropdown format */}
-          <div className="flex items-center gap-1.5 text-xs">
+          {/* Quick convert-all dropdown format with Shadcn Select */}
+          <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground hidden sm:inline">
               Convert all to:
             </span>
-            <select
-              defaultValue=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  onGlobalFormatChange(e.target.value);
-                  e.target.value = "";
-                }
+            <Select
+              onValueChange={(val: unknown) => {
+                if (typeof val === "string" && val) onGlobalFormatChange(val);
               }}
-              className="h-7 rounded-lg border border-input bg-background px-2 text-xs font-medium text-foreground outline-none cursor-pointer focus:border-primary"
             >
-              <option value="" disabled>
-                Select format...
-              </option>
-              <option value="pdf">PDF</option>
-              <option value="docx">DOCX</option>
-              <option value="png">PNG</option>
-              <option value="jpg">JPG</option>
-              <option value="webp">WEBP</option>
-              <option value="txt">TXT</option>
-            </select>
+              <SelectTrigger
+                size="sm"
+                className="h-8 min-w-28 rounded-xl border border-input/80 bg-background px-2.5 text-xs font-medium text-foreground hover:bg-muted/50 focus:border-primary"
+              >
+                <SelectValue placeholder="Select format..." />
+              </SelectTrigger>
+              <SelectContent align="end" className="min-w-32">
+                <SelectItem value="pdf" className="text-xs font-medium">
+                  PDF
+                </SelectItem>
+                <SelectItem value="docx" className="text-xs font-medium">
+                  DOCX
+                </SelectItem>
+                <SelectItem value="png" className="text-xs font-medium">
+                  PNG
+                </SelectItem>
+                <SelectItem value="jpg" className="text-xs font-medium">
+                  JPG
+                </SelectItem>
+                <SelectItem value="webp" className="text-xs font-medium">
+                  WEBP
+                </SelectItem>
+                <SelectItem value="txt" className="text-xs font-medium">
+                  TXT
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <Button
@@ -80,7 +99,7 @@ export default function ConverterFileList(props: ConverterFileListProps) {
             variant="ghost"
             onClick={onClearAll}
             disabled={isProcessing}
-            className="h-7 text-xs text-muted-foreground hover:text-destructive"
+            className="h-8 text-xs text-muted-foreground hover:text-destructive"
           >
             <HugeiconsIcon icon={Delete01Icon} className="size-3.5" />
             <span>Clear</span>

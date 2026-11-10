@@ -2,6 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Alert02Icon,
   ArrowRight01Icon,
   CheckmarkCircle02Icon,
@@ -61,24 +68,37 @@ export default function ConverterRow({
           <span className="text-xs font-medium text-muted-foreground hidden md:inline">
             to
           </span>
-          <div className="relative">
-            <select
-              value={item.targetFormat}
-              disabled={
-                item.status === "converting" ||
-                item.status === "completed" ||
-                disabled
-              }
-              onChange={(e) => onFormatChange(item.id, e.target.value)}
-              className="h-8 rounded-xl border border-input bg-background px-2.5 pr-7 text-xs font-semibold uppercase tracking-wider text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 cursor-pointer"
+
+          {/* Shadcn Select Dropdown */}
+          <Select
+            value={item.targetFormat}
+            disabled={
+              item.status === "converting" ||
+              item.status === "completed" ||
+              disabled
+            }
+            onValueChange={(val: unknown) => {
+              if (typeof val === "string" && val) onFormatChange(item.id, val);
+            }}
+          >
+            <SelectTrigger
+              size="sm"
+              className="h-8 min-w-24 rounded-xl border border-input/80 bg-background px-2.5 text-xs font-semibold uppercase tracking-wider text-foreground hover:bg-muted/50 focus:border-primary"
             >
+              <SelectValue placeholder="Format" />
+            </SelectTrigger>
+            <SelectContent align="end" className="min-w-28">
               {availableFormats.map((fmt) => (
-                <option key={fmt} value={fmt} className="normal-case">
-                  {fmt.toUpperCase()}
-                </option>
+                <SelectItem
+                  key={fmt}
+                  value={fmt}
+                  className="text-xs uppercase font-medium cursor-pointer"
+                >
+                  {fmt}
+                </SelectItem>
               ))}
-            </select>
-          </div>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Status / Convert / Download Button */}
