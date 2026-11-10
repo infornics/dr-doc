@@ -1,10 +1,10 @@
 import { ConverterRowProps } from "../types/converterRow.types";
-import { formatFileSize, getAvailableTargetFormats } from "../utils";
+import { formatFileSize, getAvailableTargetFormats } from "./converter.utils";
 
 export function getConverterRowData(item: ConverterRowProps["item"]) {
   const availableFormats = getAvailableTargetFormats(item.sourceFormat);
   const isImage = ["png", "jpg", "jpeg", "webp", "svg", "heic"].includes(
-    item.sourceFormat.toLowerCase()
+    item.sourceFormat.toLowerCase(),
   );
   const formattedSize = formatFileSize(item.size);
   const downloadFileName = `${item.name.replace(/\.[^/.]+$/, "")}.${item.targetFormat}`;
@@ -16,4 +16,3 @@ export function getConverterRowData(item: ConverterRowProps["item"]) {
     downloadFileName,
   };
 }
-

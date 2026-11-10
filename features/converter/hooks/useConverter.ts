@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { ConverterItem } from "../types/converter.types";
-import { getDefaultTargetFormat, getFileExtension } from "../utils";
+import { getDefaultTargetFormat, getFileExtension } from "../utils/converter.utils";
 
 export function useConverter() {
   const [items, setItems] = useState<ConverterItem[]>([]);
