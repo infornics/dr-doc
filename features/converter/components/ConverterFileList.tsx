@@ -9,23 +9,25 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ConverterFileListProps } from "../types/converterFileList.types";
+import { getFileListSummary } from "../utils/converterFileList.utils";
 import ConverterRow from "./ConverterRow";
 
-export default function ConverterFileList({
-  items,
-  isProcessing,
-  onRemove,
-  onFormatChange,
-  onConvert,
-  onConvertAll,
-  onClearAll,
-  onGlobalFormatChange,
-}: ConverterFileListProps) {
+export default function ConverterFileList(props: ConverterFileListProps) {
+  const {
+    items,
+    isProcessing,
+    onRemove,
+    onFormatChange,
+    onConvert,
+    onConvertAll,
+    onClearAll,
+    onGlobalFormatChange,
+  } = props;
+
   if (items.length === 0) return null;
 
-  const completedCount = items.filter((i) => i.status === "completed").length;
-  const idleCount = items.filter((i) => i.status === "idle").length;
-  const allCompleted = completedCount === items.length && items.length > 0;
+  const { completedCount, idleCount, allCompleted, downloadAll } =
+    getFileListSummary(items);
 
   return (
     <div className="space-y-4">
@@ -131,17 +133,7 @@ export default function ConverterFileList({
             size="lg"
             variant="default"
             className="w-full sm:w-auto gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-            onClick={() => {
-              // Trigger download for each item
-              items.forEach((item) => {
-                if (item.downloadUrl) {
-                  const link = document.createElement("a");
-                  link.href = item.downloadUrl;
-                  link.download = `${item.name.replace(/\.[^/.]+$/, "")}.${item.targetFormat}`;
-                  link.click();
-                }
-              });
-            }}
+            onClick={downloadAll}
           >
             <HugeiconsIcon icon={Download02Icon} className="size-4" />
             <span>Download All ({items.length})</span>

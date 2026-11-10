@@ -7,52 +7,31 @@ import {
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ChangeEvent, DragEvent, useRef, useState } from "react";
+import { useDropzone } from "../hooks/useDropzone";
 import { DropzoneProps } from "../types/dropzone.types";
 
-export default function Dropzone({ onFilesSelected, disabled }: DropzoneProps) {
-  const [isDragOver, setIsDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (disabled) return;
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (disabled) return;
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onFilesSelected(e.dataTransfer.files);
-    }
-  };
-
-  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      onFilesSelected(e.target.files);
-      // Reset input so re-selecting same file works
-      e.target.value = "";
-    }
-  };
+export default function Dropzone(props: DropzoneProps) {
+  const {
+    isDragOver,
+    inputRef,
+    openFileDialog,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleFileInputChange,
+  } = useDropzone(props);
 
   return (
     <div
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      onClick={() => inputRef.current?.click()}
+      onClick={openFileDialog}
       className={`group relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed p-8 md:p-12 text-center transition-all cursor-pointer select-none ${
         isDragOver
           ? "border-primary bg-primary/5 ring-4 ring-primary/10 scale-[1.008]"
           : "border-border/80 bg-card/60 hover:border-primary/50 hover:bg-muted/30"
-      } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+      } ${props.disabled ? "opacity-60 pointer-events-none" : ""}`}
     >
       <input
         ref={inputRef}
@@ -75,8 +54,7 @@ export default function Dropzone({ onFilesSelected, disabled }: DropzoneProps) {
           Drag & drop your files here
         </h3>
         <p className="text-sm text-muted-foreground">
-          Supports Images (PNG, JPG, WEBP), Documents (PDF, DOCX, TXT), E-books
-          and more.
+          Supports Images (PNG, JPG, WEBP), Documents (PDF, DOCX, TXT), E-books and more.
         </p>
       </div>
 

@@ -12,7 +12,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ConverterRowProps } from "../types/converterRow.types";
-import { formatFileSize, getAvailableTargetFormats } from "../utils";
+import { getConverterRowData } from "../utils/converterRow.utils";
 
 export default function ConverterRow({
   item,
@@ -21,10 +21,8 @@ export default function ConverterRow({
   onConvert,
   disabled,
 }: ConverterRowProps) {
-  const availableFormats = getAvailableTargetFormats(item.sourceFormat);
-  const isImage = ["png", "jpg", "jpeg", "webp", "svg", "heic"].includes(
-    item.sourceFormat.toLowerCase(),
-  );
+  const { availableFormats, isImage, formattedSize, downloadFileName } =
+    getConverterRowData(item);
 
   return (
     <div className="group relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-border/80 bg-card p-4 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm">
@@ -41,7 +39,7 @@ export default function ConverterRow({
             {item.name}
           </p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>{formatFileSize(item.size)}</span>
+            <span>{formattedSize}</span>
             <span>•</span>
             <span className="uppercase font-mono text-[11px] font-semibold text-primary">
               {item.sourceFormat}
@@ -112,7 +110,7 @@ export default function ConverterRow({
               </span>
               <a
                 href={item.downloadUrl || "#"}
-                download={`${item.name.replace(/\.[^/.]+$/, "")}.${item.targetFormat}`}
+                download={downloadFileName}
                 className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-emerald-600 px-3 text-xs font-medium text-white shadow-xs transition-colors hover:bg-emerald-700"
               >
                 <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
