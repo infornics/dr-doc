@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ArrowReloadVerticalIcon,
   CropIcon,
@@ -11,97 +12,95 @@ import ImageCropper from "./ImageCropper";
 import ImageMergeToPdf from "./ImageMergeToPdf";
 import ConverterSection from "@/features/converter/components/ConverterSection";
 
-export type ImageToolTab = "convert" | "crop" | "merge";
+export type ImageToolType = "convert" | "crop" | "merge";
 
 interface ImageToolsViewProps {
-  initialTab?: ImageToolTab;
+  currentTool: ImageToolType;
 }
 
-export default function ImageToolsView({ initialTab = "convert" }: ImageToolsViewProps) {
-  const [activeTab, setActiveTab] = useState<ImageToolTab>(initialTab);
+const TOOLS = [
+  {
+    id: "convert" as const,
+    label: "Convert Image",
+    href: "/image-tools/convert",
+    icon: ArrowReloadVerticalIcon,
+    title: "Convert Image Formats",
+    subtitle:
+      "Convert between PNG, JPG, WEBP, SVG, PDF, and more with zero compression artifacts.",
+  },
+  {
+    id: "crop" as const,
+    label: "Crop Image",
+    href: "/image-tools/crop",
+    icon: CropIcon,
+    title: "Crop Image",
+    subtitle:
+      "Trim image borders, adjust pixel dimensions, and export with custom aspect ratios.",
+  },
+  {
+    id: "merge" as const,
+    label: "Merge to PDF",
+    href: "/image-tools/merge-to-pdf",
+    icon: File01Icon,
+    title: "Merge Images into PDF",
+    subtitle:
+      "Combine multiple photos, receipts, or screenshots into an organized multi-page PDF document.",
+  },
+];
+
+export default function ImageToolsView({ currentTool }: ImageToolsViewProps) {
+  const pathname = usePathname();
+
+  const activeToolConfig =
+    TOOLS.find((t) => t.id === currentTool) || TOOLS[0];
 
   return (
     <div className="space-y-8">
-      {/* Navigation Pills */}
+      {/* Navigation Pills (Links to Dedicated URLs) */}
       <div className="flex justify-center">
         <div className="inline-flex items-center rounded-2xl border border-border/80 bg-muted/30 p-1.5 shadow-2xs">
-          <button
-            onClick={() => setActiveTab("convert")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-              activeTab === "convert"
-                ? "bg-background text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <HugeiconsIcon icon={ArrowReloadVerticalIcon} className="size-4 text-primary" />
-            <span>Convert Image</span>
-          </button>
+          {TOOLS.map((tool) => {
+            const isActive =
+              currentTool === tool.id ||
+              pathname === tool.href ||
+              (tool.id === "convert" && pathname === "/image-tools");
 
-          <button
-            onClick={() => setActiveTab("crop")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-              activeTab === "crop"
-                ? "bg-background text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <HugeiconsIcon icon={CropIcon} className="size-4 text-primary" />
-            <span>Crop Image</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("merge")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-              activeTab === "merge"
-                ? "bg-background text-foreground shadow-xs border border-border/60"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <HugeiconsIcon icon={File01Icon} className="size-4 text-primary" />
-            <span>Merge to PDF</span>
-          </button>
+            return (
+              <Link
+                key={tool.id}
+                href={tool.href}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+                  isActive
+                    ? "bg-background text-foreground shadow-xs border border-border/60"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <HugeiconsIcon
+                  icon={tool.icon}
+                  className={`size-4 ${isActive ? "text-primary" : ""}`}
+                />
+                <span>{tool.label}</span>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
-      {/* Dynamic Tab Content */}
+      {/* Dynamic Tool Content */}
       <div className="transition-all">
-        {activeTab === "convert" && (
-          <div className="space-y-4">
-            <div className="text-center max-w-xl mx-auto">
-              <h2 className="text-lg font-semibold text-foreground">Convert Image Formats</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Convert between PNG, JPG, WEBP, SVG, PDF, and more with zero compression artifacts.
-              </p>
-            </div>
-            <ConverterSection />
-          </div>
-        )}
+        <div className="text-center max-w-xl mx-auto mb-6">
+          <h2 className="text-lg font-semibold text-foreground">
+            {activeToolConfig.title}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {activeToolConfig.subtitle}
+          </p>
+        </div>
 
-        {activeTab === "crop" && (
-          <div className="space-y-4">
-            <div className="text-center max-w-xl mx-auto">
-              <h2 className="text-lg font-semibold text-foreground">Crop Image</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Trim image borders, adjust pixel dimensions, and export with custom aspect ratios.
-              </p>
-            </div>
-            <ImageCropper />
-          </div>
-        )}
-
-        {activeTab === "merge" && (
-          <div className="space-y-4">
-            <div className="text-center max-w-xl mx-auto">
-              <h2 className="text-lg font-semibold text-foreground">Merge Images into PDF</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Combine multiple photos, receipts, or screenshots into an organized multi-page PDF document.
-              </p>
-            </div>
-            <ImageMergeToPdf />
-          </div>
-        )}
+        {currentTool === "convert" && <ConverterSection />}
+        {currentTool === "crop" && <ImageCropper />}
+        {currentTool === "merge" && <ImageMergeToPdf />}
       </div>
     </div>
   );
 }
-

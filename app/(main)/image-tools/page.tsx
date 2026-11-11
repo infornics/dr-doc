@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { ImageToolsView } from "@/features/image-tools/components";
 
 export const metadata: Metadata = {
-  title: "Image Tools | Dr. Doc",
+  title: "Online Image Tools | Dr. Doc",
   description:
     "Convert image formats, crop pictures with custom ratios, and merge multiple images into an organized PDF document.",
 };
@@ -25,9 +25,8 @@ export default function ImageToolsPage() {
       </div>
 
       <div className="mx-auto max-w-5xl">
-        <ImageToolsView initialTab="convert" />
+        <ImageToolsView currentTool="convert" />
       </div>
     </main>
   );
 }
-
