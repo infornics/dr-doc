@@ -31,12 +31,16 @@ export async function POST(req: NextRequest) {
 
       await fs.writeFile(inputPdf, buffer);
 
-      // Render 1st page quickly with low-overhead jpeg at 50 DPI directly to webp
-      await execAsync(`pdftoppm -jpeg -jpegopt quality=70 -r 50 -f 1 -l 1 "${inputPdf}" "${outPrefix}"`);
+      // Render 1st page in crystal-clear high quality (150 DPI) for legible reading in full height and fullscreen
+      await execAsync(
+        `pdftoppm -jpeg -jpegopt quality=85 -r 150 -f 1 -l 1 "${inputPdf}" "${outPrefix}"`
+      );
 
       const files = await fs.readdir(tempDir);
       const generated = files.find(
-        (f: string) => f.startsWith("page-") && (f.endsWith(".jpg") || f.endsWith(".jpeg") || f.endsWith(".png"))
+        (f: string) =>
+          f.startsWith("page-") &&
+          (f.endsWith(".jpg") || f.endsWith(".jpeg") || f.endsWith(".png"))
       );
 
       if (!generated) {
@@ -45,8 +49,8 @@ export async function POST(req: NextRequest) {
 
       const generatedPath = path.join(tempDir, generated);
       const thumbBuffer = await sharp(generatedPath)
-        .resize({ width: 220, height: 280, fit: "inside" })
-        .webp({ quality: 70 })
+        .resize({ width: 1200, height: 1600, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 85 })
         .toBuffer();
 
       return new NextResponse(new Uint8Array(thumbBuffer), {
@@ -60,8 +64,8 @@ export async function POST(req: NextRequest) {
       // It is an image (PNG, JPG, WEBP, etc.)
       const thumbBuffer = await sharp(buffer, { failOn: "none" })
         .rotate()
-        .resize({ width: 300, height: 400, fit: "inside" })
-        .webp({ quality: 80 })
+        .resize({ width: 1200, height: 1600, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 85 })
         .toBuffer();
 
       return new NextResponse(new Uint8Array(thumbBuffer), {

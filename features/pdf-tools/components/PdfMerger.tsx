@@ -673,7 +673,7 @@ export default function PdfMerger() {
             <img
               src={selectedItem.thumbnailUrl}
               alt={selectedItem.file.name}
-              className="max-h-[calc(100vh-8rem)] max-w-[90vw] object-contain rounded-xl shadow-2xl border border-border/60 bg-white"
+              className="h-[calc(100vh-7rem)] w-auto max-w-[85vw] object-contain rounded-xl shadow-2xl border border-border/60 bg-white"
             />
 
             {/* Next button */}
