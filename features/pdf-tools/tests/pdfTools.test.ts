@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
 import { PDFDocument } from "pdf-lib";
+import JSZip from "jszip";
 import { POST as mergePdfHandler } from "@/app/api/pdf/merge/route";
 import { POST as splitPdfHandler } from "@/app/api/pdf/split/route";
+import { POST as removePagesHandler } from "@/app/api/pdf/remove-pages/route";
 import { POST as cropPdfHandler } from "@/app/api/pdf/crop/route";
 
 describe("PDF Tools API Endpoints", () => {
@@ -57,7 +59,7 @@ describe("PDF Tools API Endpoints", () => {
   });
 
   describe("PDF Split API (/api/pdf/split)", () => {
-    it("should split a multi-page PDF by range", async () => {
+    it("should split a multi-page PDF into a zip containing individual single-page PDFs", async () => {
       const pdf = await PDFDocument.create();
       pdf.addPage([400, 400]); // Page 1
       pdf.addPage([400, 400]); // Page 2
@@ -69,35 +71,6 @@ describe("PDF Tools API Endpoints", () => {
         "file",
         new File([Buffer.from(pdfBytes)], "three-pages.pdf", { type: "application/pdf" })
       );
-      formData.append("mode", "range");
-      formData.append("range", "1, 3");
-
-      const req = new NextRequest("http://localhost:3000/api/pdf/split", {
-        method: "POST",
-        body: formData,
-      });
-
-      const res = await splitPdfHandler(req);
-      expect(res.status).toBe(200);
-      expect(res.headers.get("content-type")).toContain("application/pdf");
-
-      const arrayBuf = await res.arrayBuffer();
-      const loaded = await PDFDocument.load(arrayBuf);
-      expect(loaded.getPageCount()).toBe(2);
-    });
-
-    it("should split a multi-page PDF into zip in 'all' mode", async () => {
-      const pdf = await PDFDocument.create();
-      pdf.addPage([400, 400]);
-      pdf.addPage([400, 400]);
-      const pdfBytes = await pdf.save();
-
-      const formData = new FormData();
-      formData.append(
-        "file",
-        new File([Buffer.from(pdfBytes)], "two-pages.pdf", { type: "application/pdf" })
-      );
-      formData.append("mode", "all");
 
       const req = new NextRequest("http://localhost:3000/api/pdf/split", {
         method: "POST",
@@ -107,6 +80,42 @@ describe("PDF Tools API Endpoints", () => {
       const res = await splitPdfHandler(req);
       expect(res.status).toBe(200);
       expect(res.headers.get("content-type")).toContain("application/zip");
+
+      const arrayBuf = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuf);
+      const zipFiles = Object.keys(zip.files);
+      expect(zipFiles.length).toBe(3);
+      expect(zipFiles.some((f) => f.includes("page-1.pdf"))).toBe(true);
+    });
+  });
+
+  describe("PDF Remove Pages API (/api/pdf/remove-pages)", () => {
+    it("should remove specified pages and return a continuous PDF", async () => {
+      const pdf = await PDFDocument.create();
+      pdf.addPage([400, 400]); // Page 1
+      pdf.addPage([400, 400]); // Page 2
+      pdf.addPage([400, 400]); // Page 3
+      const pdfBytes = await pdf.save();
+
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([Buffer.from(pdfBytes)], "three-pages.pdf", { type: "application/pdf" })
+      );
+      formData.append("pages", "2");
+
+      const req = new NextRequest("http://localhost:3000/api/pdf/remove-pages", {
+        method: "POST",
+        body: formData,
+      });
+
+      const res = await removePagesHandler(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/pdf");
+
+      const arrayBuf = await res.arrayBuffer();
+      const loaded = await PDFDocument.load(arrayBuf);
+      expect(loaded.getPageCount()).toBe(2);
     });
   });
 

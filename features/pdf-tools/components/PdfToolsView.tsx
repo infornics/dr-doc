@@ -7,14 +7,16 @@ import {
   File01Icon,
   ScissorIcon,
   CropIcon,
+  FileRemoveIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import PdfMerger from "./PdfMerger";
 import PdfSplitter from "./PdfSplitter";
 import PdfCropper from "./PdfCropper";
+import PdfPageRemover from "./PdfPageRemover";
 import ConverterSection from "@/features/converter/components/ConverterSection";
 
-export type PdfToolType = "convert" | "merge" | "split" | "crop";
+export type PdfToolType = "convert" | "merge" | "split" | "crop" | "remove-pages";
 
 interface PdfToolsViewProps {
   currentTool: PdfToolType;
@@ -44,9 +46,18 @@ const TOOLS = [
     label: "Split PDF",
     href: "/pdf-tools/split",
     icon: ScissorIcon,
-    title: "Split PDF Documents",
+    title: "Split PDF into Single Pages",
     subtitle:
-      "Extract all pages, custom page ranges, or split documents into equal-sized chunks.",
+      "Split every page of a PDF into individual documents bundled inside a single zip archive.",
+  },
+  {
+    id: "remove-pages" as const,
+    label: "Remove Pages",
+    href: "/pdf-tools/remove-pages",
+    icon: FileRemoveIcon,
+    title: "Remove PDF Pages",
+    subtitle:
+      "Delete unwanted pages or page ranges from a PDF and download the clean output document.",
   },
   {
     id: "crop" as const,
@@ -116,6 +127,7 @@ export default function PdfToolsView({ currentTool }: PdfToolsViewProps) {
         )}
         {currentTool === "merge" && <PdfMerger />}
         {currentTool === "split" && <PdfSplitter />}
+        {currentTool === "remove-pages" && <PdfPageRemover />}
         {currentTool === "crop" && <PdfCropper />}
       </div>
     </div>
