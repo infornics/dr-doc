@@ -72,7 +72,8 @@ export default function ImageCropper() {
     const { width: nw, height: nh } = naturalSize;
     let targetRatio: number | null = null;
 
-    if (preset === "1:1") targetRatio = 1;
+    if (preset === "original") targetRatio = nw / nh;
+    else if (preset === "1:1") targetRatio = 1;
     else if (preset === "16:9") targetRatio = 16 / 9;
     else if (preset === "4:3") targetRatio = 4 / 3;
     else if (preset === "9:16") targetRatio = 9 / 16;
@@ -197,7 +198,7 @@ export default function ImageCropper() {
                   Aspect Ratio
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {["free", "1:1", "16:9", "4:3", "9:16"].map((preset) => (
+                  {["free", "original", "1:1", "16:9", "4:3", "9:16"].map((preset) => (
                     <Button
                       key={preset}
                       size="sm"
