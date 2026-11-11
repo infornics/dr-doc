@@ -283,10 +283,10 @@ export default function PdfMerger() {
       </div>
 
       {mergeItems.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* LEFT SECTION (7 cols): Mini Preview Gallery & Drag and Drop Reordering */}
-          <div className="lg:col-span-7 bg-card rounded-3xl border border-border/80 p-5 sm:p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+          <div className="lg:col-span-7 bg-card rounded-3xl border border-border/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between h-[calc(100vh-14rem)] min-h-[680px]">
+            <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0">
               <div>
                 <span className="font-semibold text-foreground block">
                   Reorder Document Pages ({mergeItems.length} {mergeItems.length === 1 ? "page" : "pages"})
@@ -301,7 +301,7 @@ export default function PdfMerger() {
             </div>
 
             {/* Grid of Preview Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 max-h-[640px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 flex-1 overflow-y-auto pr-1 my-3">
               {mergeItems.map((item, idx) => {
                 const isBeingDragged = draggedIndex === idx;
                 const isDropTarget = dragOverIndex === idx;
@@ -418,7 +418,7 @@ export default function PdfMerger() {
             </div>
 
             {/* Merge Actions Card under Left Gallery */}
-            <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
               <div className="w-full sm:w-auto flex-1 max-w-xs">
                 <input
                   type="text"
@@ -463,9 +463,9 @@ export default function PdfMerger() {
           </div>
 
           {/* RIGHT SECTION (5 cols): Full Page Preview with Full Screen Option */}
-          <div className="lg:col-span-5 bg-card rounded-3xl border border-border/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between sticky top-20 min-h-[640px]">
+          <div className="lg:col-span-5 bg-card rounded-3xl border border-border/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between h-[calc(100vh-14rem)] min-h-[680px]">
             {/* Header info */}
-            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between pb-3 border-b border-border/60 shrink-0">
               <div className="min-w-0 pr-2">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground text-sm truncate">
@@ -498,7 +498,7 @@ export default function PdfMerger() {
             </div>
 
             {/* High-res / Full-height Page Preview Canvas */}
-            <div className="my-4 relative flex-1 min-h-[460px] max-h-[560px] rounded-2xl bg-muted/20 border border-border/60 overflow-hidden flex items-center justify-center p-3">
+            <div className="my-3 relative flex-1 min-h-0 rounded-2xl bg-muted/20 border border-border/60 overflow-hidden flex items-center justify-center p-2">
               {selectedItem?.isLoadingThumb ? (
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
                   <HugeiconsIcon icon={Loading03Icon} className="size-8 animate-spin text-primary" />
@@ -509,7 +509,7 @@ export default function PdfMerger() {
                   <img
                     src={selectedItem.thumbnailUrl}
                     alt={selectedItem.file.name}
-                    className="max-h-full max-w-full object-contain rounded-lg shadow-sm border border-border/40"
+                    className="w-full h-full object-contain rounded-lg shadow-sm"
                   />
                   {/* Hover Overlay button for Fullscreen */}
                   <div className="absolute inset-0 bg-background/30 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
@@ -533,7 +533,7 @@ export default function PdfMerger() {
             </div>
 
             {/* Page Navigation Controls (Previous / Next Page) */}
-            <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+            <div className="pt-3 border-t border-border/60 flex items-center justify-between shrink-0">
               <Button
                 size="sm"
                 variant="ghost"
