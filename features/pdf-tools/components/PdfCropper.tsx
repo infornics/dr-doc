@@ -25,7 +25,7 @@ import { toast } from "sonner";
 interface PdfCropperProps {
   initialFile?: File;
   initialPreviewUrl?: string;
-  onCropComplete?: (croppedBlob: Blob, croppedFilename: string) => void;
+  onCropComplete?: (croppedBlob: Blob, croppedFilename: string, croppedPreviewUrl?: string) => void;
   onCancel?: () => void;
 }
 
@@ -161,6 +161,33 @@ export default function PdfCropper({
       height: Math.round(completedCrop.height * scaleY),
     };
 
+    // Generate immediate high-resolution cropped canvas preview URL on the client
+    let localCroppedPreviewUrl: string | undefined = undefined;
+    try {
+      const cropW = Math.max(1, Math.round(completedCrop.width * scaleX));
+      const cropH = Math.max(1, Math.round(completedCrop.height * scaleY));
+      const canvas = document.createElement("canvas");
+      canvas.width = cropW;
+      canvas.height = cropH;
+      const ctx = canvas.getContext("2d");
+      if (ctx && imgRef.current) {
+        ctx.drawImage(
+          imgRef.current,
+          Math.round(completedCrop.x * scaleX),
+          Math.round(completedCrop.y * scaleY),
+          cropW,
+          cropH,
+          0,
+          0,
+          cropW,
+          cropH
+        );
+        localCroppedPreviewUrl = canvas.toDataURL("image/webp", 0.95);
+      }
+    } catch (err) {
+      console.warn("Canvas crop preview generation failed:", err);
+    }
+
     setIsProcessing(true);
     try {
       const { blob, filename } = await cropPdfApi({
@@ -175,7 +202,7 @@ export default function PdfCropper({
       });
 
       if (onCropComplete) {
-        onCropComplete(blob, filename);
+        onCropComplete(blob, filename, localCroppedPreviewUrl);
         return;
       }
 
@@ -257,6 +284,7 @@ export default function PdfCropper({
                     ref={imgRef}
                     src={imageSrc}
                     alt="PDF Page Crop Target"
+                    crossOrigin="anonymous"
                     onLoad={onImageLoad}
                     className="max-h-[600px] w-auto object-contain bg-white"
                   />

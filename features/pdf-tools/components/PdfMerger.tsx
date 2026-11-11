@@ -831,12 +831,12 @@ export default function PdfMerger() {
             <PdfCropper
               initialFile={selectedItem.file}
               initialPreviewUrl={selectedItem.thumbnailUrl}
-              onCropComplete={async (croppedBlob, croppedFilename) => {
+              onCropComplete={async (croppedBlob, croppedFilename, croppedPreviewUrl) => {
                 const croppedFile = new File([croppedBlob], croppedFilename, {
                   type: "application/pdf",
                 });
 
-                // Immediately update file and enter loading state for the thumbnail
+                // Immediately update item with client-rendered preview URL and new file
                 setMergeItems((prev) =>
                   prev.map((item) =>
                     item.id === selectedItem.id
@@ -845,14 +845,15 @@ export default function PdfMerger() {
                           file: croppedFile,
                           formattedSize: formatFileSize(croppedFile.size),
                           isImage: false,
-                          isLoadingThumb: true,
+                          thumbnailUrl: croppedPreviewUrl || item.thumbnailUrl,
+                          isLoadingThumb: false,
                         }
                       : item
                   )
                 );
                 setIsCroppingItem(false);
 
-                // Fetch high-res rendered image thumbnail for this cropped PDF
+                // Fetch a fresh server-rendered thumbnail from the new PDF in background
                 try {
                   const formData = new FormData();
                   formData.append("file", croppedFile);
@@ -869,13 +870,6 @@ export default function PdfMerger() {
                   );
                 } catch (err) {
                   console.error("Failed to generate preview for cropped PDF:", err);
-                  setMergeItems((prev) =>
-                    prev.map((item) =>
-                      item.id === selectedItem.id
-                        ? { ...item, isLoadingThumb: false }
-                        : item
-                    )
-                  );
                 }
 
                 toast.success("Page cropped and updated in sequence!");

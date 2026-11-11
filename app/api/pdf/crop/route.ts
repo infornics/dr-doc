@@ -22,10 +22,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid crop dimensions." }, { status: 400 });
     }
 
-    const isPdf =
-      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-
     const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Detect actual PDF magic bytes: %PDF (0x25, 0x50, 0x44, 0x46)
+    const isPdf =
+      buffer.length >= 4 &&
+      buffer[0] === 0x25 &&
+      buffer[1] === 0x50 &&
+      buffer[2] === 0x44 &&
+      buffer[3] === 0x46;
 
     if (isPdf) {
       const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
