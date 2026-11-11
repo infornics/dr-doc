@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell } from "docx";
 
 function createMockRequest(fileBuffer: Buffer, fileName: string, targetFormat: string) {
   const formData = new FormData();
@@ -193,6 +193,44 @@ describe("Comprehensive Conversion Tests - All Website Supported Formats", () =>
       const markdown = await res.text();
       expect(markdown).toContain("# Heading Section");
       expect(markdown).toContain("**This is bold text**");
+    }, 15000);
+
+    it("converts DOCX tables to clean GitHub Flavored Markdown (GFM) pipe tables", async () => {
+      const docWithTable = new Document({
+        sections: [
+          {
+            children: [
+              new Table({
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({ children: [new Paragraph({ text: "Medicine" })] }),
+                      new TableCell({ children: [new Paragraph({ text: "Total stock" })] }),
+                      new TableCell({ children: [new Paragraph({ text: "Batch" })] }),
+                    ],
+                  }),
+                  new TableRow({
+                    children: [
+                      new TableCell({ children: [new Paragraph({ text: "Dolo 650 Tablet" })] }),
+                      new TableCell({ children: [new Paragraph({ text: "150" })] }),
+                      new TableCell({ children: [new Paragraph({ text: "DOL241" })] }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          },
+        ],
+      });
+
+      const tableDocxBuffer = await Packer.toBuffer(docWithTable);
+      const res = await POST(createMockRequest(tableDocxBuffer, "inventory.docx", "md"));
+      expect(res.status).toBe(200);
+
+      const markdown = await res.text();
+      expect(markdown).toContain("| Medicine | Total stock | Batch |");
+      expect(markdown).toContain("| --- | --- | --- |");
+      expect(markdown).toContain("| Dolo 650 Tablet | 150 | DOL241 |");
     }, 15000);
 
     it("converts DOCX to MDX with metadata header (.mdx)", async () => {

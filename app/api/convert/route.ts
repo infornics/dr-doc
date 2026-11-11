@@ -10,6 +10,8 @@ import os from "os";
 import JSZip from "jszip";
 import mammoth from "mammoth";
 import TurndownService from "turndown";
+// @ts-expect-error turndown-plugin-gfm does not supply official @types
+import { gfm } from "turndown-plugin-gfm";
 
 const execAsync = promisify(exec);
 
@@ -137,9 +139,12 @@ export async function POST(req: NextRequest) {
       }
 
       // Convert docx buffer to HTML via mammoth
-      const { value: html } = await mammoth.convertToHtml({ buffer: docxBuffer });
+      const { value: rawHtml } = await mammoth.convertToHtml({ buffer: docxBuffer });
 
-      // Convert HTML to Markdown via turndown
+      // Clean HTML tables to adhere to GitHub Flavored Markdown standards
+      const cleanedHtml = cleanDocxHtmlForMarkdown(rawHtml);
+
+      // Convert HTML to Markdown via turndown with GFM tables plugin
       const turndownService = new TurndownService({
         headingStyle: "atx",
         hr: "---",
@@ -148,7 +153,9 @@ export async function POST(req: NextRequest) {
         emDelimiter: "_",
       });
 
-      let markdown = turndownService.turndown(html);
+      turndownService.use(gfm);
+
+      let markdown = turndownService.turndown(cleanedHtml);
 
       if (targetFormat === "mdx") {
         // MDX formatting: ensure clean line returns and frontmatter-ready structure
@@ -372,6 +379,43 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Error processing file conversion.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function cleanDocxHtmlForMarkdown(html: string): string {
+  // Strip inner paragraph tags, line breaks, and collapse whitespaces inside table headers and cells
+  // so cells never contain multi-line breaks that break GFM pipe tables
+  const noPInCells = html.replace(
+    /<(th|td)\b([^>]*)>([\s\S]*?)<\/\1>/gi,
+    (_, tag, attrs, content) => {
+      const cleanContent = content
+        .replace(/<br\s*\/?>/gi, " ")
+        .replace(/<\/?p[^>]*>/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return `<${tag}${attrs}>${cleanContent}</${tag}>`;
+    }
+  );
+
+  // Mammoth outputs <table><tr>...</tr></table> without <thead> and <th> by default.
+  // Transform the first row into <thead><th> to ensure GFM table compliance.
+  return noPInCells.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (match, inner) => {
+    if (/<thead/i.test(inner)) return match;
+
+    let converted = false;
+    const transformedInner = inner.replace(
+      /<tr[^>]*>([\s\S]*?)<\/tr>/i,
+      (_: string, trInner: string) => {
+        converted = true;
+        const thInner = trInner.replace(/<td\b([^>]*)>([\s\S]*?)<\/td>/gi, "<th$1>$2</th>");
+        return `<thead><tr>${thInner}</tr></thead><tbody>`;
+      }
+    );
+
+    if (converted) {
+      return `<table>${transformedInner}</tbody></table>`;
+    }
+    return match;
+  });
 }
 
 function createBinaryResponse(buffer: Buffer, filename: string, contentType: string) {
