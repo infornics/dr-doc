@@ -232,7 +232,51 @@ export default function PdfMerger() {
     });
   };
 
-  // HTML5 Drag and Drop Card Reordering Handlers
+  // HTML5 Drag and Drop Card Reordering Handlers with Auto-Scroll
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const autoScrollRafRef = useRef<number | null>(null);
+
+  const startAutoScroll = (direction: "up" | "down", speed: number) => {
+    stopAutoScroll();
+    const scroll = () => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop += direction === "down" ? speed : -speed;
+      }
+      autoScrollRafRef.current = requestAnimationFrame(scroll);
+    };
+    autoScrollRafRef.current = requestAnimationFrame(scroll);
+  };
+
+  const stopAutoScroll = () => {
+    if (autoScrollRafRef.current !== null) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
+  };
+
+  const handleContainerDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedIndex === null || !scrollContainerRef.current) return;
+
+    const rect = scrollContainerRef.current.getBoundingClientRect();
+    const mouseY = e.clientY;
+    const edgeThreshold = 90; // pixels from top or bottom edge to start scrolling
+    const distanceFromTop = mouseY - rect.top;
+    const distanceFromBottom = rect.bottom - mouseY;
+
+    if (distanceFromTop < edgeThreshold && distanceFromTop > 0) {
+      // Near top edge: scroll up, speed scales with proximity
+      const intensity = Math.max(2, Math.round((1 - distanceFromTop / edgeThreshold) * 14));
+      startAutoScroll("up", intensity);
+    } else if (distanceFromBottom < edgeThreshold && distanceFromBottom > 0) {
+      // Near bottom edge: scroll down, speed scales with proximity
+      const intensity = Math.max(2, Math.round((1 - distanceFromBottom / edgeThreshold) * 14));
+      startAutoScroll("down", intensity);
+    } else {
+      stopAutoScroll();
+    }
+  };
+
   const handleDragStart = (index: number) => {
     setDraggedIndex(index);
   };
@@ -246,6 +290,7 @@ export default function PdfMerger() {
 
   const handleDropOnCard = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
+    stopAutoScroll();
     if (draggedIndex !== null && draggedIndex !== targetIndex) {
       moveFile(draggedIndex, targetIndex);
     }
@@ -254,6 +299,7 @@ export default function PdfMerger() {
   };
 
   const handleDragEnd = () => {
+    stopAutoScroll();
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
@@ -347,7 +393,12 @@ export default function PdfMerger() {
             </div>
 
             {/* Grid of Preview Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 flex-1 overflow-y-auto pr-1 my-3">
+            <div
+              ref={scrollContainerRef}
+              onDragOver={handleContainerDragOver}
+              onDragLeave={stopAutoScroll}
+              className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 flex-1 overflow-y-auto pr-1 my-3 scroll-smooth"
+            >
               {mergeItems.map((item, idx) => {
                 const isBeingDragged = draggedIndex === idx;
                 const isDropTarget = dragOverIndex === idx;
