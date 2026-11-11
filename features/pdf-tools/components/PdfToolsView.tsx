@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import {
   ArrowReloadVerticalIcon,
   File01Icon,
+  ScissorIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import PdfMerger from "./PdfMerger";
+import PdfSplitter from "./PdfSplitter";
 import ConverterSection from "@/features/converter/components/ConverterSection";
 
-export type PdfToolType = "convert" | "merge";
+export type PdfToolType = "convert" | "merge" | "split";
 
 interface PdfToolsViewProps {
   currentTool: PdfToolType;
@@ -34,6 +36,15 @@ const TOOLS = [
     title: "Merge PDFs & Images into PDF",
     subtitle:
       "Combine PDF documents and images (PNG, JPG, WEBP) into a single continuous, organized PDF document.",
+  },
+  {
+    id: "split" as const,
+    label: "Split PDF",
+    href: "/pdf-tools/split",
+    icon: ScissorIcon,
+    title: "Split PDF Documents",
+    subtitle:
+      "Extract all pages, custom page ranges, or split documents into equal-sized chunks.",
   },
 ];
 
@@ -93,6 +104,7 @@ export default function PdfToolsView({ currentTool }: PdfToolsViewProps) {
           />
         )}
         {currentTool === "merge" && <PdfMerger />}
+        {currentTool === "split" && <PdfSplitter />}
       </div>
     </div>
   );

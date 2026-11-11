@@ -16,6 +16,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 import axios from "axios";
 import { mergePdfsApi } from "../services/pdfTools.service";
+import { splitPdfToSinglePageFiles } from "../services/pdfSplit.service";
 
 interface MergeItem {
   id: string;
@@ -74,7 +75,7 @@ export default function PdfMerger() {
     }
   };
 
-  const addFiles = (fileList: FileList | File[]) => {
+  const addFiles = async (fileList: FileList | File[]) => {
     const rawFiles = Array.from(fileList);
     const validFiles = rawFiles.filter((f) => {
       const ext = f.name.split(".").pop()?.toLowerCase();
@@ -93,12 +94,31 @@ export default function PdfMerger() {
 
     if (validFiles.length === 0) return;
 
-    const newItems: MergeItem[] = validFiles.map((f) => {
+    // Expand any multi-page PDF into separate single-page files
+    // so every individual page gets its own card and preview in the gallery
+    const expandedFiles: File[] = [];
+
+    for (const f of validFiles) {
+      const isPdf =
+        f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+
+      if (isPdf) {
+        try {
+          const singlePages = await splitPdfToSinglePageFiles(f);
+          expandedFiles.push(...singlePages);
+        } catch {
+          expandedFiles.push(f);
+        }
+      } else {
+        expandedFiles.push(f);
+      }
+    }
+
+    const newItems: MergeItem[] = expandedFiles.map((f) => {
       const isPdf =
         f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
       const id = `${f.name}-${Date.now()}-${Math.random()}`;
 
-      // For images, generate local instant object URL immediately on the client (0ms delay)
       let initialThumbUrl: string | undefined = undefined;
       let shouldLoadServerThumb = false;
 
