@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
+import sharp from "sharp";
+
+const A4_WIDTH = 595.28;
+const A4_HEIGHT = 841.89;
+const MARGIN = 36; // 0.5 inch margins
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     if (!files || files.length === 0) {
       return NextResponse.json(
-        { error: "No PDF files provided." },
+        { error: "No files provided." },
         { status: 400 }
       );
     }
@@ -20,19 +25,49 @@ export async function POST(req: NextRequest) {
       if (!(item instanceof File)) continue;
 
       const arrayBuffer = await item.arrayBuffer();
-      try {
-        const loadedPdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
-        const pageIndices = loadedPdf.getPageIndices();
-        const copiedPages = await mergedPdf.copyPages(loadedPdf, pageIndices);
-        copiedPages.forEach((page) => mergedPdf.addPage(page));
-      } catch (err) {
-        console.error(`Error loading PDF file: ${item.name}`, err);
+      const buffer = Buffer.from(arrayBuffer);
+      const isPdf =
+        item.type === "application/pdf" || item.name.toLowerCase().endsWith(".pdf");
+
+      if (isPdf) {
+        try {
+          const loadedPdf = await PDFDocument.load(buffer, { ignoreEncryption: true });
+          const pageIndices = loadedPdf.getPageIndices();
+          const copiedPages = await mergedPdf.copyPages(loadedPdf, pageIndices);
+          copiedPages.forEach((page) => mergedPdf.addPage(page));
+        } catch (err) {
+          console.error(`Error loading PDF file: ${item.name}`, err);
+        }
+      } else {
+        // Attempt to process as an image (PNG, JPG, WEBP, SVG, TIFF, AVIF, etc.)
+        try {
+          const image = sharp(buffer, { failOn: "none" }).rotate();
+          const metadata = await image.metadata();
+
+          if (metadata.width && metadata.height) {
+            const pngBuffer = await image.png().toBuffer();
+            const embedded = await mergedPdf.embedPng(pngBuffer);
+
+            const maxW = A4_WIDTH - MARGIN * 2;
+            const maxH = A4_HEIGHT - MARGIN * 2;
+            const scale = Math.min(maxW / embedded.width, maxH / embedded.height, 1);
+            const w = embedded.width * scale;
+            const h = embedded.height * scale;
+            const x = (A4_WIDTH - w) / 2;
+            const y = (A4_HEIGHT - h) / 2;
+
+            const page = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+            page.drawImage(embedded, { x, y, width: w, height: h });
+          }
+        } catch (imgErr) {
+          console.error(`Error processing image ${item.name}:`, imgErr);
+        }
       }
     }
 
     if (mergedPdf.getPageCount() === 0) {
       return NextResponse.json(
-        { error: "Could not read any valid pages from the provided PDF files." },
+        { error: "Could not read any valid pages from the provided PDF or image files." },
         { status: 400 }
       );
     }

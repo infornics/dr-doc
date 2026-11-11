@@ -8,6 +8,7 @@ import {
   Delete02Icon,
   Loading03Icon,
   File01Icon,
+  Image01Icon,
   ArrowUp01Icon,
   ArrowDown01Icon,
 } from "@hugeicons/core-free-icons";
@@ -15,10 +16,11 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 import { mergePdfsApi } from "../services/pdfTools.service";
 
-interface PdfItem {
+interface MergeItem {
   id: string;
   file: File;
   formattedSize: string;
+  isImage: boolean;
 }
 
 function formatFileSize(bytes: number): string {
@@ -27,8 +29,10 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const SUPPORTED_EXTS = ["pdf", "png", "jpg", "jpeg", "webp", "svg", "avif", "tiff", "bmp"];
+
 export default function PdfMerger() {
-  const [pdfFiles, setPdfFiles] = useState<PdfItem[]>([]);
+  const [mergeItems, setMergeItems] = useState<MergeItem[]>([]);
   const [outputFilename, setOutputFilename] = useState("merged-document.pdf");
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
@@ -36,34 +40,44 @@ export default function PdfMerger() {
 
   const addFiles = (fileList: FileList | File[]) => {
     const rawFiles = Array.from(fileList);
-    const validPdfs = rawFiles.filter(
-      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
-    );
+    const validFiles = rawFiles.filter((f) => {
+      const ext = f.name.split(".").pop()?.toLowerCase();
+      return (
+        f.type === "application/pdf" ||
+        f.type.startsWith("image/") ||
+        (ext && SUPPORTED_EXTS.includes(ext))
+      );
+    });
 
-    if (validPdfs.length < rawFiles.length) {
+    if (validFiles.length < rawFiles.length) {
       toast.error("Unsupported file type", {
-        description: "Only PDF documents (.pdf) can be added to the PDF Merger.",
+        description: "Only PDF documents and images (PNG, JPG, WEBP, SVG) can be merged.",
       });
     }
 
-    if (validPdfs.length === 0) return;
+    if (validFiles.length === 0) return;
 
-    const newItems: PdfItem[] = validPdfs.map((f) => ({
-      id: `${f.name}-${Date.now()}-${Math.random()}`,
-      file: f,
-      formattedSize: formatFileSize(f.size),
-    }));
+    const newItems: MergeItem[] = validFiles.map((f) => {
+      const isPdf =
+        f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+      return {
+        id: `${f.name}-${Date.now()}-${Math.random()}`,
+        file: f,
+        formattedSize: formatFileSize(f.size),
+        isImage: !isPdf,
+      };
+    });
 
-    setPdfFiles((prev) => [...prev, ...newItems]);
+    setMergeItems((prev) => [...prev, ...newItems]);
     setResultUrl(null);
   };
 
   const removeFile = (id: string) => {
-    setPdfFiles((prev) => prev.filter((i) => i.id !== id));
+    setMergeItems((prev) => prev.filter((i) => i.id !== id));
   };
 
   const moveFile = (index: number, direction: "up" | "down") => {
-    setPdfFiles((prev) => {
+    setMergeItems((prev) => {
       const updated = [...prev];
       const targetIndex = direction === "up" ? index - 1 : index + 1;
       if (targetIndex < 0 || targetIndex >= updated.length) return prev;
@@ -75,32 +89,32 @@ export default function PdfMerger() {
   };
 
   const handleMerge = async () => {
-    if (pdfFiles.length < 2) {
-      toast.error("Please add at least 2 PDF files to merge.");
+    if (mergeItems.length < 2) {
+      toast.error("Please add at least 2 files (PDFs or images) to merge.");
       return;
     }
 
     setIsProcessing(true);
     try {
       const res = await mergePdfsApi({
-        files: pdfFiles.map((i) => i.file),
+        files: mergeItems.map((i) => i.file),
         filename: outputFilename || "merged-document.pdf",
       });
 
       const url = URL.createObjectURL(res.blob);
       setResultUrl(url);
       setResultFilename(res.filename);
-      toast.success("PDFs merged successfully!");
+      toast.success("Files merged into PDF successfully!");
     } catch (err: unknown) {
       console.error(err);
-      toast.error("Failed to merge PDF files.");
+      toast.error("Failed to merge files into PDF.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const clearAll = () => {
-    setPdfFiles([]);
+    setMergeItems([]);
     setResultUrl(null);
   };
 
@@ -118,7 +132,7 @@ export default function PdfMerger() {
           const input = document.createElement("input");
           input.type = "file";
           input.multiple = true;
-          input.accept = "application/pdf";
+          input.accept = "application/pdf,image/*";
           input.onchange = (e) => {
             const files = (e.target as HTMLInputElement).files;
             if (files) addFiles(files);
@@ -129,23 +143,23 @@ export default function PdfMerger() {
         <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3 shadow-xs">
           <HugeiconsIcon icon={Upload01Icon} className="size-7" />
         </div>
-        <h3 className="text-lg font-semibold text-foreground">Select PDF Files to Merge</h3>
+        <h3 className="text-lg font-semibold text-foreground">Select PDFs or Images to Merge</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Drag & drop or click to upload 2 or more PDF documents
+          Drag & drop or click to upload PDF files or images (PNG, JPG, WEBP)
         </p>
         <Button variant="secondary" size="sm" className="mt-4 gap-2">
           <HugeiconsIcon icon={Upload01Icon} className="size-4" />
-          <span>Add PDF Files</span>
+          <span>Add Files</span>
         </Button>
       </div>
 
-      {pdfFiles.length > 0 && (
+      {mergeItems.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Order list */}
           <div className="lg:col-span-2 bg-card rounded-3xl border border-border/80 p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-border/60">
               <span className="font-semibold text-foreground">
-                Document Sequence ({pdfFiles.length} {pdfFiles.length === 1 ? "file" : "files"})
+                Document Sequence ({mergeItems.length} {mergeItems.length === 1 ? "item" : "items"})
               </span>
               <Button size="sm" variant="ghost" onClick={clearAll} className="text-xs text-destructive">
                 Clear all
@@ -153,7 +167,7 @@ export default function PdfMerger() {
             </div>
 
             <div className="space-y-2.5">
-              {pdfFiles.map((item, idx) => (
+              {mergeItems.map((item, idx) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between gap-3 rounded-2xl border border-border/80 bg-background p-3.5 shadow-2xs hover:border-primary/50 transition-all"
@@ -162,14 +176,21 @@ export default function PdfMerger() {
                     <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold text-xs">
                       {idx + 1}
                     </span>
-                    <HugeiconsIcon icon={File01Icon} className="size-5 text-muted-foreground shrink-0" />
+                    <HugeiconsIcon
+                      icon={item.isImage ? Image01Icon : File01Icon}
+                      className="size-5 text-muted-foreground shrink-0"
+                    />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {item.file.name}
                       </p>
-                      <span className="text-xs text-muted-foreground">
-                        {item.formattedSize}
-                      </span>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{item.formattedSize}</span>
+                        <span>•</span>
+                        <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-md bg-muted">
+                          {item.isImage ? "Image" : "PDF"}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -186,7 +207,7 @@ export default function PdfMerger() {
                     <Button
                       size="icon-xs"
                       variant="ghost"
-                      disabled={idx === pdfFiles.length - 1}
+                      disabled={idx === mergeItems.length - 1}
                       onClick={() => moveFile(idx, "down")}
                       title="Move down"
                     >
@@ -228,8 +249,8 @@ export default function PdfMerger() {
               </div>
 
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Pages will be concatenated sequentially from Document 1 to Document{" "}
-                {pdfFiles.length}. You can reorder items using the arrow controls.
+                Images will be automatically converted to full-page PDF format and
+                merged sequentially with your PDF documents into one continuous file.
               </p>
             </div>
 
@@ -238,17 +259,17 @@ export default function PdfMerger() {
               <Button
                 className="w-full gap-2 font-semibold shadow-sm"
                 onClick={handleMerge}
-                disabled={isProcessing || pdfFiles.length < 2}
+                disabled={isProcessing || mergeItems.length < 2}
               >
                 {isProcessing ? (
                   <>
                     <HugeiconsIcon icon={Loading03Icon} className="size-4 animate-spin" />
-                    <span>Merging PDFs...</span>
+                    <span>Merging to PDF...</span>
                   </>
                 ) : (
                   <>
                     <HugeiconsIcon icon={File01Icon} className="size-4" />
-                    <span>Merge {pdfFiles.length} PDFs</span>
+                    <span>Merge {mergeItems.length} Files</span>
                   </>
                 )}
               </Button>

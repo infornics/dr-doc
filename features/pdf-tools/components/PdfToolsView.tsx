@@ -28,12 +28,12 @@ const TOOLS = [
   },
   {
     id: "merge" as const,
-    label: "Merge PDFs",
+    label: "Merge PDFs & Images",
     href: "/pdf-tools/merge",
     icon: File01Icon,
-    title: "Merge Multiple PDFs",
+    title: "Merge PDFs & Images into PDF",
     subtitle:
-      "Combine two or more PDF files into a single continuous, organized PDF document.",
+      "Combine PDF documents and images (PNG, JPG, WEBP) into a single continuous, organized PDF document.",
   },
 ];
 
