@@ -15,12 +15,14 @@ import {
   Cancel01Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  CropIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 import axios from "axios";
 import { mergePdfsApi } from "../services/pdfTools.service";
 import { splitPdfToSinglePageFiles } from "../services/pdfSplit.service";
+import PdfCropper from "./PdfCropper";
 
 interface MergeItem {
   id: string;
@@ -54,6 +56,7 @@ export default function PdfMerger() {
   // Full-page preview / inspection state
   const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
   const [isModalFullscreen, setIsModalFullscreen] = useState(false);
+  const [isCroppingItem, setIsCroppingItem] = useState(false);
 
   // Keep selected preview synchronized if items are deleted or added
   useEffect(() => {
@@ -608,18 +611,31 @@ export default function PdfMerger() {
                 </span>
               </div>
 
-              {/* View Full Screen Height Button */}
+              {/* View Full Screen & Crop Page Buttons */}
               {selectedItem?.thumbnailUrl && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsModalFullscreen(true)}
-                  className="gap-1.5 text-xs shrink-0 rounded-xl hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-all"
-                  title="Expand to Full Screen Height"
-                >
-                  <HugeiconsIcon icon={Maximize01Icon} className="size-3.5" />
-                  <span className="hidden sm:inline">Full Screen</span>
-                </Button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsCroppingItem(true)}
+                    className="gap-1.5 text-xs rounded-xl hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-all"
+                    title="Crop this page"
+                  >
+                    <HugeiconsIcon icon={CropIcon} className="size-3.5" />
+                    <span>Crop Page</span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsModalFullscreen(true)}
+                    className="gap-1.5 text-xs rounded-xl hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-all"
+                    title="Expand to Full Screen Height"
+                  >
+                    <HugeiconsIcon icon={Maximize01Icon} className="size-3.5" />
+                    <span className="hidden sm:inline">Full Screen</span>
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -773,6 +789,72 @@ export default function PdfMerger() {
             >
               <HugeiconsIcon icon={ArrowRight01Icon} className="size-5" />
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* CROP PAGE MODAL */}
+      {isCroppingItem && selectedItem && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-background/95 backdrop-blur-md animate-in fade-in duration-200"
+        >
+          <div className="w-full max-w-5xl bg-card rounded-3xl border border-border/80 shadow-2xl p-6 space-y-4 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <HugeiconsIcon icon={CropIcon} className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">
+                    Crop Page: {selectedItem.file.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Adjust the crop box and aspect ratio. Applying replaces this page in your merge sequence.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setIsCroppingItem(false)}
+                className="rounded-full size-8 hover:bg-muted"
+                title="Cancel"
+              >
+                <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+              </Button>
+            </div>
+
+            <PdfCropper
+              initialFile={selectedItem.file}
+              initialPreviewUrl={selectedItem.thumbnailUrl}
+              onCropComplete={(croppedBlob, croppedFilename) => {
+                const croppedFile = new File([croppedBlob], croppedFilename, {
+                  type: "application/pdf",
+                });
+                const newThumbUrl = URL.createObjectURL(croppedBlob);
+
+                // Update the item in mergeItems state
+                setMergeItems((prev) =>
+                  prev.map((item) =>
+                    item.id === selectedItem.id
+                      ? {
+                          ...item,
+                          file: croppedFile,
+                          formattedSize: formatFileSize(croppedFile.size),
+                          thumbnailUrl: newThumbUrl,
+                          isLoadingThumb: false,
+                        }
+                      : item
+                  )
+                );
+
+                setIsCroppingItem(false);
+                toast.success("Page cropped and updated in sequence!");
+              }}
+              onCancel={() => setIsCroppingItem(false)}
+            />
           </div>
         </div>
       )}

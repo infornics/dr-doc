@@ -6,13 +6,15 @@ import {
   ArrowReloadVerticalIcon,
   File01Icon,
   ScissorIcon,
+  CropIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import PdfMerger from "./PdfMerger";
 import PdfSplitter from "./PdfSplitter";
+import PdfCropper from "./PdfCropper";
 import ConverterSection from "@/features/converter/components/ConverterSection";
 
-export type PdfToolType = "convert" | "merge" | "split";
+export type PdfToolType = "convert" | "merge" | "split" | "crop";
 
 interface PdfToolsViewProps {
   currentTool: PdfToolType;
@@ -45,6 +47,15 @@ const TOOLS = [
     title: "Split PDF Documents",
     subtitle:
       "Extract all pages, custom page ranges, or split documents into equal-sized chunks.",
+  },
+  {
+    id: "crop" as const,
+    label: "Crop PDF",
+    href: "/pdf-tools/crop",
+    icon: CropIcon,
+    title: "Crop PDF Pages",
+    subtitle:
+      "Trim margins, isolate sections, and adjust dimensions of PDF pages with precise aspect ratios.",
   },
 ];
 
@@ -105,6 +116,7 @@ export default function PdfToolsView({ currentTool }: PdfToolsViewProps) {
         )}
         {currentTool === "merge" && <PdfMerger />}
         {currentTool === "split" && <PdfSplitter />}
+        {currentTool === "crop" && <PdfCropper />}
       </div>
     </div>
   );

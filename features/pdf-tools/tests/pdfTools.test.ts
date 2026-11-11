@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { PDFDocument } from "pdf-lib";
 import { POST as mergePdfHandler } from "@/app/api/pdf/merge/route";
 import { POST as splitPdfHandler } from "@/app/api/pdf/split/route";
+import { POST as cropPdfHandler } from "@/app/api/pdf/crop/route";
 
 describe("PDF Tools API Endpoints", () => {
   describe("PDF Merge API (/api/pdf/merge)", () => {
@@ -106,6 +107,42 @@ describe("PDF Tools API Endpoints", () => {
       const res = await splitPdfHandler(req);
       expect(res.status).toBe(200);
       expect(res.headers.get("content-type")).toContain("application/zip");
+    });
+  });
+
+  describe("PDF Crop API (/api/pdf/crop)", () => {
+    it("should crop a PDF page according to given coordinate bounds", async () => {
+      const pdf = await PDFDocument.create();
+      pdf.addPage([500, 800]);
+      const pdfBytes = await pdf.save();
+
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([Buffer.from(pdfBytes)], "document.pdf", { type: "application/pdf" })
+      );
+      formData.append("cropX", "50");
+      formData.append("cropY", "100");
+      formData.append("cropWidth", "300");
+      formData.append("cropHeight", "400");
+      formData.append("originalWidth", "500");
+      formData.append("originalHeight", "800");
+      formData.append("pageIndex", "0");
+
+      const req = new NextRequest("http://localhost:3000/api/pdf/crop", {
+        method: "POST",
+        body: formData,
+      });
+
+      const res = await cropPdfHandler(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/pdf");
+
+      const arrayBuf = await res.arrayBuffer();
+      const loaded = await PDFDocument.load(arrayBuf);
+      const page = loaded.getPage(0);
+      expect(page.getWidth()).toBe(300);
+      expect(page.getHeight()).toBe(400);
     });
   });
 });
