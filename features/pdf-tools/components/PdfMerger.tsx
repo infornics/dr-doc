@@ -183,6 +183,12 @@ export default function PdfMerger() {
     });
   };
 
+  const selectedItem =
+    mergeItems.find((item) => item.id === selectedPreviewId) || mergeItems[0] || null;
+  const selectedIndex = selectedItem
+    ? mergeItems.findIndex((item) => item.id === selectedItem.id)
+    : -1;
+
   // Keyboard shortcut: Delete or Backspace to remove currently selected page
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -286,12 +292,6 @@ export default function PdfMerger() {
     setSelectedPreviewId(null);
     setIsModalFullscreen(false);
   };
-
-  const selectedItem =
-    mergeItems.find((item) => item.id === selectedPreviewId) || mergeItems[0] || null;
-  const selectedIndex = selectedItem
-    ? mergeItems.findIndex((item) => item.id === selectedItem.id)
-    : -1;
 
   return (
     <div className="space-y-6">
