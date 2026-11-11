@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Download01Icon,
@@ -11,6 +11,10 @@ import {
   Image01Icon,
   ArrowUp01Icon,
   ArrowDown01Icon,
+  Maximize01Icon,
+  Cancel01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
@@ -45,6 +49,21 @@ export default function PdfMerger() {
   // Drag and drop reordering states
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // Full-page preview / inspection state
+  const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
+  const [isModalFullscreen, setIsModalFullscreen] = useState(false);
+
+  // Keep selected preview synchronized if items are deleted or added
+  useEffect(() => {
+    if (mergeItems.length > 0) {
+      if (!selectedPreviewId || !mergeItems.some((item) => item.id === selectedPreviewId)) {
+        setSelectedPreviewId(mergeItems[0].id);
+      }
+    } else {
+      setSelectedPreviewId(null);
+    }
+  }, [mergeItems, selectedPreviewId]);
 
   const fetchThumbnail = async (id: string, file: File, isImage: boolean) => {
     if (isImage) {
@@ -218,7 +237,15 @@ export default function PdfMerger() {
     });
     setMergeItems([]);
     setResultUrl(null);
+    setSelectedPreviewId(null);
+    setIsModalFullscreen(false);
   };
+
+  const selectedItem =
+    mergeItems.find((item) => item.id === selectedPreviewId) || mergeItems[0] || null;
+  const selectedIndex = selectedItem
+    ? mergeItems.findIndex((item) => item.id === selectedItem.id)
+    : -1;
 
   return (
     <div className="space-y-6">
@@ -256,47 +283,53 @@ export default function PdfMerger() {
       </div>
 
       {mergeItems.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Visual Interactive Thumbnail Gallery for Reordering */}
-          <div className="lg:col-span-2 bg-card rounded-3xl border border-border/80 p-6 shadow-xs space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* LEFT SECTION (7 cols): Mini Preview Gallery & Drag and Drop Reordering */}
+          <div className="lg:col-span-7 bg-card rounded-3xl border border-border/80 p-5 sm:p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-border/60">
               <div>
                 <span className="font-semibold text-foreground block">
                   Reorder Document Pages ({mergeItems.length} {mergeItems.length === 1 ? "page" : "pages"})
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  Drag and drop cards or use the arrows to set page order
+                  Drag and drop cards or click to inspect on the right panel
                 </span>
               </div>
-              <Button size="sm" variant="ghost" onClick={clearAll} className="text-xs text-destructive">
+              <Button size="sm" variant="ghost" onClick={clearAll} className="text-xs text-destructive hover:bg-destructive/10">
                 Clear all
               </Button>
             </div>
 
             {/* Grid of Preview Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 max-h-[640px] overflow-y-auto pr-1">
               {mergeItems.map((item, idx) => {
                 const isBeingDragged = draggedIndex === idx;
                 const isDropTarget = dragOverIndex === idx;
+                const isSelected = selectedItem?.id === item.id;
 
                 return (
                   <div
                     key={item.id}
                     draggable
+                    onClick={() => setSelectedPreviewId(item.id)}
                     onDragStart={() => handleDragStart(idx)}
                     onDragOver={(e) => handleDragOverCard(e, idx)}
                     onDrop={(e) => handleDropOnCard(e, idx)}
                     onDragEnd={handleDragEnd}
-                    className={`relative group rounded-2xl border p-3 bg-background shadow-2xs transition-all flex flex-col justify-between cursor-grab active:cursor-grabbing ${
+                    className={`relative group rounded-2xl border p-2.5 bg-background shadow-2xs transition-all flex flex-col justify-between cursor-pointer select-none ${
                       isBeingDragged ? "opacity-30 border-dashed border-primary" : "border-border/80"
-                    } ${isDropTarget ? "border-primary ring-2 ring-primary/20 scale-105" : "hover:border-primary/50"}`}
+                    } ${
+                      isSelected
+                        ? "ring-2 ring-primary border-primary shadow-xs"
+                        : "hover:border-primary/60"
+                    } ${isDropTarget ? "border-primary ring-2 ring-primary/20 scale-[1.02]" : ""}`}
                   >
                     {/* Visual Thumbnail Window */}
                     <div className="relative w-full aspect-3/4 rounded-xl overflow-hidden bg-muted/40 border border-border/40 flex items-center justify-center p-1">
                       {item.isLoadingThumb ? (
-                        <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                          <HugeiconsIcon icon={Loading03Icon} className="size-5 animate-spin text-primary" />
-                          <span className="text-[10px] font-medium">Generating preview...</span>
+                        <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                          <HugeiconsIcon icon={Loading03Icon} className="size-4 animate-spin text-primary" />
+                          <span className="text-[9px] font-medium">Generating...</span>
                         </div>
                       ) : item.thumbnailUrl ? (
                         <img
@@ -308,35 +341,35 @@ export default function PdfMerger() {
                         <div className="flex flex-col items-center gap-1 text-muted-foreground">
                           <HugeiconsIcon
                             icon={item.isImage ? Image01Icon : File01Icon}
-                            className="size-8 text-muted-foreground/60"
+                            className="size-7 text-muted-foreground/60"
                           />
-                          <span className="text-[10px] uppercase font-bold tracking-wider">
+                          <span className="text-[9px] uppercase font-bold tracking-wider">
                             {item.isImage ? "Image" : "PDF"}
                           </span>
                         </div>
                       )}
 
                       {/* Sequence Number Badge */}
-                      <span className="absolute top-2 left-2 size-6 rounded-full bg-foreground/90 text-background text-xs font-bold flex items-center justify-center shadow-xs">
+                      <span className="absolute top-1.5 left-1.5 size-5 rounded-full bg-foreground/90 text-background text-[11px] font-bold flex items-center justify-center shadow-xs">
                         {idx + 1}
                       </span>
 
                       {/* Type Badge */}
-                      <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-background/80 backdrop-blur-xs text-[10px] font-semibold text-foreground uppercase shadow-2xs border border-border/50">
+                      <span className="absolute top-1.5 right-1.5 px-1 py-0.2 rounded-md bg-background/80 backdrop-blur-xs text-[9px] font-semibold text-foreground uppercase shadow-2xs border border-border/50">
                         {item.isImage ? "Image" : "PDF"}
                       </span>
                     </div>
 
                     {/* Metadata & Controls */}
-                    <div className="mt-2.5 space-y-2">
+                    <div className="mt-2 space-y-1.5">
                       <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold text-foreground" title={item.file.name}>
+                        <p className="truncate text-[11px] font-semibold text-foreground" title={item.file.name}>
                           {item.file.name}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">{item.formattedSize}</p>
+                        <p className="text-[10px] text-muted-foreground">{item.formattedSize}</p>
                       </div>
 
-                      {/* Reorder Buttons */}
+                      {/* Reorder Buttons & Quick View */}
                       <div className="flex items-center justify-between pt-1 border-t border-border/40">
                         <div className="flex items-center gap-0.5">
                           <Button
@@ -349,7 +382,7 @@ export default function PdfMerger() {
                             }}
                             title="Move earlier"
                           >
-                            <HugeiconsIcon icon={ArrowUp01Icon} className="size-3.5" />
+                            <HugeiconsIcon icon={ArrowUp01Icon} className="size-3" />
                           </Button>
                           <Button
                             size="icon-xs"
@@ -361,7 +394,7 @@ export default function PdfMerger() {
                             }}
                             title="Move later"
                           >
-                            <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" />
+                            <HugeiconsIcon icon={ArrowDown01Icon} className="size-3" />
                           </Button>
                         </div>
 
@@ -375,7 +408,7 @@ export default function PdfMerger() {
                           className="text-destructive hover:bg-destructive/10"
                           title="Remove item"
                         >
-                          <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
+                          <HugeiconsIcon icon={Delete02Icon} className="size-3" />
                         </Button>
                       </div>
                     </div>
@@ -383,68 +416,235 @@ export default function PdfMerger() {
                 );
               })}
             </div>
-          </div>
 
-          {/* Merge Settings & Actions Sidebar */}
-          <div className="flex flex-col justify-between bg-card rounded-3xl border border-border/80 p-6 shadow-xs space-y-6">
-            <div className="space-y-5">
-              <span className="font-semibold text-foreground block pb-3 border-b border-border/60">
-                Merge Settings
-              </span>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Output Filename
-                </label>
+            {/* Merge Actions Card under Left Gallery */}
+            <div className="pt-3 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="w-full sm:w-auto flex-1 max-w-xs">
                 <input
                   type="text"
                   value={outputFilename}
                   onChange={(e) => setOutputFilename(e.target.value)}
                   placeholder="merged-document.pdf"
-                  className="w-full h-9 px-3 rounded-xl border border-input bg-background text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                  className="w-full h-8.5 px-3 rounded-xl border border-input bg-background text-xs text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
-              <div className="rounded-2xl bg-muted/30 p-3.5 border border-border/60 space-y-1.5 text-xs text-muted-foreground leading-relaxed">
-                <p className="font-semibold text-foreground">💡 How it works</p>
-                <p>
-                  Drag any card to change its position in the final document, or click the arrows.
-                  Images are rendered into standard full-page PDF layouts and merged seamlessly with your documents.
-                </p>
+              <div className="w-full sm:w-auto flex items-center gap-2">
+                <Button
+                  className="w-full sm:w-auto gap-2 font-semibold shadow-sm text-xs h-8.5"
+                  onClick={handleMerge}
+                  disabled={isProcessing || mergeItems.length < 2}
+                >
+                  {isProcessing ? (
+                    <>
+                      <HugeiconsIcon icon={Loading03Icon} className="size-3.5 animate-spin" />
+                      <span>Merging...</span>
+                    </>
+                  ) : (
+                    <>
+                      <HugeiconsIcon icon={File01Icon} className="size-3.5" />
+                      <span>Merge {mergeItems.length} Pages</span>
+                    </>
+                  )}
+                </Button>
+
+                {resultUrl && (
+                  <a
+                    href={resultUrl}
+                    download={resultFilename}
+                    className="inline-flex items-center justify-center gap-1.5 h-8.5 px-3 rounded-xl bg-emerald-600 text-white font-medium text-xs hover:bg-emerald-700 shadow-sm transition-all whitespace-nowrap"
+                  >
+                    <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
+                    <span>Download</span>
+                  </a>
+                )}
               </div>
             </div>
+          </div>
 
-            {/* Merge Actions */}
-            <div className="space-y-3 pt-4 border-t border-border/60">
-              <Button
-                className="w-full gap-2 font-semibold shadow-sm"
-                onClick={handleMerge}
-                disabled={isProcessing || mergeItems.length < 2}
-              >
-                {isProcessing ? (
-                  <>
-                    <HugeiconsIcon icon={Loading03Icon} className="size-4 animate-spin" />
-                    <span>Merging to PDF...</span>
-                  </>
-                ) : (
-                  <>
-                    <HugeiconsIcon icon={File01Icon} className="size-4" />
-                    <span>Merge {mergeItems.length} Files</span>
-                  </>
-                )}
-              </Button>
+          {/* RIGHT SECTION (5 cols): Full Page Preview with Full Screen Option */}
+          <div className="lg:col-span-5 bg-card rounded-3xl border border-border/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between sticky top-20 min-h-[640px]">
+            {/* Header info */}
+            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+              <div className="min-w-0 pr-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground text-sm truncate">
+                    {selectedItem ? selectedItem.file.name : "Page Preview"}
+                  </span>
+                  {selectedItem && (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-muted text-[10px] font-bold text-muted-foreground uppercase border border-border/60">
+                      Page {selectedIndex + 1} of {mergeItems.length}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground block truncate mt-0.5">
+                  Full-height page preview
+                </span>
+              </div>
 
-              {resultUrl && (
-                <a
-                  href={resultUrl}
-                  download={resultFilename}
-                  className="w-full flex items-center justify-center gap-2 h-10 rounded-xl bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 shadow-sm transition-all"
+              {/* View Full Screen Height Button */}
+              {selectedItem?.thumbnailUrl && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsModalFullscreen(true)}
+                  className="gap-1.5 text-xs shrink-0 rounded-xl hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-all"
+                  title="Expand to Full Screen Height"
                 >
-                  <HugeiconsIcon icon={Download01Icon} className="size-4" />
-                  <span>Download Merged PDF</span>
-                </a>
+                  <HugeiconsIcon icon={Maximize01Icon} className="size-3.5" />
+                  <span className="hidden sm:inline">Full Screen</span>
+                </Button>
               )}
             </div>
+
+            {/* High-res / Full-height Page Preview Canvas */}
+            <div className="my-4 relative flex-1 min-h-[460px] max-h-[560px] rounded-2xl bg-muted/20 border border-border/60 overflow-hidden flex items-center justify-center p-3">
+              {selectedItem?.isLoadingThumb ? (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <HugeiconsIcon icon={Loading03Icon} className="size-8 animate-spin text-primary" />
+                  <span className="text-xs font-medium">Rendering preview...</span>
+                </div>
+              ) : selectedItem?.thumbnailUrl ? (
+                <div className="relative w-full h-full flex items-center justify-center group">
+                  <img
+                    src={selectedItem.thumbnailUrl}
+                    alt={selectedItem.file.name}
+                    className="max-h-full max-w-full object-contain rounded-lg shadow-sm border border-border/40"
+                  />
+                  {/* Hover Overlay button for Fullscreen */}
+                  <div className="absolute inset-0 bg-background/30 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setIsModalFullscreen(true)}
+                      className="pointer-events-auto gap-2 shadow-md rounded-xl"
+                    >
+                      <HugeiconsIcon icon={Maximize01Icon} className="size-4" />
+                      <span>View Full Height</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground text-center p-6">
+                  <HugeiconsIcon icon={File01Icon} className="size-10 text-muted-foreground/40" />
+                  <p className="text-xs">Select any page card from the left sequence to inspect its preview.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Page Navigation Controls (Previous / Next Page) */}
+            <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={selectedIndex <= 0}
+                onClick={() => {
+                  if (selectedIndex > 0) {
+                    setSelectedPreviewId(mergeItems[selectedIndex - 1].id);
+                  }
+                }}
+                className="gap-1.5 text-xs"
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
+                <span>Previous Page</span>
+              </Button>
+
+              <span className="text-xs font-semibold text-muted-foreground">
+                {selectedIndex + 1} / {mergeItems.length}
+              </span>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={selectedIndex >= mergeItems.length - 1}
+                onClick={() => {
+                  if (selectedIndex < mergeItems.length - 1) {
+                    setSelectedPreviewId(mergeItems[selectedIndex + 1].id);
+                  }
+                }}
+                className="gap-1.5 text-xs"
+              >
+                <span>Next Page</span>
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULL SCREEN MODAL VIEWER */}
+      {isModalFullscreen && selectedItem?.thumbnailUrl && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-md animate-in fade-in duration-200"
+        >
+          {/* Top Bar */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border/80 bg-card/80">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="font-bold text-foreground text-base truncate">
+                {selectedItem.file.name}
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
+                Page {selectedIndex + 1} of {mergeItems.length}
+              </span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {selectedItem.formattedSize}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setIsModalFullscreen(false)}
+                className="rounded-full size-9 hover:bg-muted"
+                title="Close fullscreen view (Esc)"
+              >
+                <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Full Height Viewer Body */}
+          <div className="relative flex-1 flex items-center justify-center p-4 sm:p-8 overflow-auto">
+            {/* Prev button */}
+            <Button
+              size="icon"
+              variant="secondary"
+              disabled={selectedIndex <= 0}
+              onClick={() => {
+                if (selectedIndex > 0) {
+                  setSelectedPreviewId(mergeItems[selectedIndex - 1].id);
+                }
+              }}
+              className="absolute left-4 z-10 size-11 rounded-full shadow-lg opacity-80 hover:opacity-100 disabled:opacity-30"
+              title="Previous Page"
+            >
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />
+            </Button>
+
+            <img
+              src={selectedItem.thumbnailUrl}
+              alt={selectedItem.file.name}
+              className="max-h-[calc(100vh-8rem)] max-w-[90vw] object-contain rounded-xl shadow-2xl border border-border/60 bg-white"
+            />
+
+            {/* Next button */}
+            <Button
+              size="icon"
+              variant="secondary"
+              disabled={selectedIndex >= mergeItems.length - 1}
+              onClick={() => {
+                if (selectedIndex < mergeItems.length - 1) {
+                  setSelectedPreviewId(mergeItems[selectedIndex + 1].id);
+                }
+              }}
+              className="absolute right-4 z-10 size-11 rounded-full shadow-lg opacity-80 hover:opacity-100 disabled:opacity-30"
+              title="Next Page"
+            >
+              <HugeiconsIcon icon={ArrowRight01Icon} className="size-5" />
+            </Button>
           </div>
         </div>
       )}

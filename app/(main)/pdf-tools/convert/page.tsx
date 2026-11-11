@@ -23,7 +23,7 @@ export default function ConvertPdfPage() {
         </p>
       </div>
 
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-7xl">
         <PdfToolsView currentTool="convert" />
       </div>
     </main>
