@@ -164,11 +164,57 @@ export default function PdfMerger() {
 
   const removeFile = (id: string) => {
     setMergeItems((prev) => {
-      const target = prev.find((i) => i.id === id);
+      const targetIndex = prev.findIndex((i) => i.id === id);
+      const target = prev[targetIndex];
       if (target?.thumbnailUrl) URL.revokeObjectURL(target.thumbnailUrl);
-      return prev.filter((i) => i.id !== id);
+      const nextList = prev.filter((i) => i.id !== id);
+
+      // Adjust selected preview to the next closest item if the current one was deleted
+      if (selectedPreviewId === id) {
+        if (nextList.length > 0) {
+          const nextIndex = Math.min(targetIndex, nextList.length - 1);
+          setSelectedPreviewId(nextList[nextIndex].id);
+        } else {
+          setSelectedPreviewId(null);
+        }
+      }
+
+      return nextList;
     });
   };
+
+  // Keyboard shortcut: Delete or Backspace to remove currently selected page
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when user is typing inside an input or textarea
+      const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (targetTag === "input" || targetTag === "textarea") {
+        return;
+      }
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedPreviewId) {
+          e.preventDefault();
+          removeFile(selectedPreviewId);
+        }
+      } else if (e.key === "ArrowLeft") {
+        if (selectedIndex > 0) {
+          e.preventDefault();
+          setSelectedPreviewId(mergeItems[selectedIndex - 1].id);
+        }
+      } else if (e.key === "ArrowRight") {
+        if (selectedIndex < mergeItems.length - 1) {
+          e.preventDefault();
+          setSelectedPreviewId(mergeItems[selectedIndex + 1].id);
+        }
+      } else if (e.key === "Escape" && isModalFullscreen) {
+        setIsModalFullscreen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedPreviewId, selectedIndex, mergeItems, isModalFullscreen]);
 
   const moveFile = (fromIndex: number, toIndex: number) => {
     setMergeItems((prev) => {
@@ -478,7 +524,7 @@ export default function PdfMerger() {
                   )}
                 </div>
                 <span className="text-xs text-muted-foreground block truncate mt-0.5">
-                  Full-height page preview
+                  Full-height page preview • Press <kbd className="px-1 py-0.5 rounded bg-muted border border-border text-[10px] font-mono">Del</kbd> to remove
                 </span>
               </div>
 
