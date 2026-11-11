@@ -11,9 +11,11 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "cn";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { NAV_LINKS } from "./header.constants";
+import { icons } from "@/public/icons";
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -27,14 +29,15 @@ export default function Header() {
             href="/"
             className="group flex items-center gap-2.5 transition-opacity hover:opacity-90"
           >
-            <div className="relative flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-105">
-              <HugeiconsIcon icon={File01Icon} className="size-5" />
-              <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-foreground text-[8px] font-bold text-background shadow-xs">
-                <HugeiconsIcon
-                  icon={ArrowReloadVerticalIcon}
-                  className="size-2.5"
-                />
-              </span>
+            <div className="relative flex size-10 shrink-0 items-center justify-center transition-transform group-hover:scale-105">
+              <Image
+                src={icons.logo}
+                alt="Dr. Doc Logo"
+                width={36}
+                height={36}
+                className="size-9 object-contain"
+                priority
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-heading text-base font-semibold tracking-tight text-foreground sm:text-lg">
