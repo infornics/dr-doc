@@ -1,12 +1,13 @@
 "use client";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   ArrowReloadVerticalIcon,
   Cancel01Icon,
   File01Icon,
+  GithubIcon,
   Menu01Icon,
-  SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "cn";
@@ -59,31 +60,47 @@ export default function Header() {
           </nav>
         </div>
 
-        {/* Right CTA Actions */}
-        <div className="hidden items-center gap-2.5 md:flex">
-          <Link
-            href="/login"
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-          >
-            Sign In
-          </Link>
+        {/* Right Actions: Theme Toggle & GitHub Repo */}
+        <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
 
           <Link
-            href="/convert"
-            className={cn(buttonVariants({ size: "sm" }), "gap-1.5 shadow-sm")}
+            href="https://github.com/infornics/dr-doc"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub Repository"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "size-9 rounded-xl text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
+            )}
           >
-            <HugeiconsIcon icon={SparklesIcon} className="size-3.5" />
-            <span>Convert Now</span>
+            <HugeiconsIcon icon={GithubIcon} className="size-4" />
           </Link>
         </div>
 
         {/* Mobile Menu Button */}
-        <div className="flex md:hidden">
+        <div className="flex items-center gap-1.5 md:hidden">
+          <ThemeToggle />
+
+          <Link
+            href="https://github.com/infornics/dr-doc"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub Repository"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "size-9 rounded-xl text-muted-foreground"
+            )}
+          >
+            <HugeiconsIcon icon={GithubIcon} className="size-4" />
+          </Link>
+
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsMobileMenuOpen((prev) => !prev)}
             aria-label="Toggle navigation menu"
+            className="size-9 rounded-xl"
           >
             <HugeiconsIcon
               icon={isMobileMenuOpen ? Cancel01Icon : Menu01Icon}
@@ -97,8 +114,6 @@ export default function Header() {
       {isMobileMenuOpen && (
         <div className="border-b border-border bg-background px-4 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
-            <div className="my-1 border-t border-border/50" />
-
             {NAV_LINKS.map((item) => (
               <Link
                 key={item.label}
@@ -109,30 +124,6 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
-
-            <div className="mt-3 flex flex-col gap-2 pt-2 border-t border-border/60">
-              <Link
-                href="/login"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                  "w-full justify-center",
-                )}
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/convert"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={cn(
-                  buttonVariants({ size: "sm" }),
-                  "w-full justify-center gap-1.5",
-                )}
-              >
-                <HugeiconsIcon icon={SparklesIcon} className="size-3.5" />
-                <span>Convert Now</span>
-              </Link>
-            </div>
           </nav>
         </div>
       )}
