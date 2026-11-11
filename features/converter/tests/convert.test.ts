@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from "docx";
 
 function createMockRequest(fileBuffer: Buffer, fileName: string, targetFormat: string) {
   const formData = new FormData();
@@ -158,7 +159,56 @@ describe("Comprehensive Conversion Tests - All Website Supported Formats", () =>
   });
 
   // -------------------------------------------------------------
-  // 4. PDF -> Image / Text / Word Conversions
+  // 4. Word (DOCX) -> Markdown (MD) & MDX Conversions
+  // -------------------------------------------------------------
+  describe("Word to Markdown & MDX Conversions", () => {
+    let sampleDocxBuffer: Buffer;
+
+    beforeAll(async () => {
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: [
+              new Paragraph({ text: "Heading Section", heading: HeadingLevel.HEADING_1 }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: "This is bold text ", bold: true }),
+                  new TextRun({ text: "and italic text.", italics: true }),
+                ],
+              }),
+            ],
+          },
+        ],
+      });
+      sampleDocxBuffer = await Packer.toBuffer(doc);
+    });
+
+    it("converts DOCX to valid formatted Markdown (.md)", async () => {
+      const res = await POST(createMockRequest(sampleDocxBuffer, "article.docx", "md"));
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("text/markdown");
+      expect(res.headers.get("Content-Disposition")).toContain('filename="article.md"');
+
+      const markdown = await res.text();
+      expect(markdown).toContain("# Heading Section");
+      expect(markdown).toContain("**This is bold text**");
+    }, 15000);
+
+    it("converts DOCX to MDX with metadata header (.mdx)", async () => {
+      const res = await POST(createMockRequest(sampleDocxBuffer, "component-doc.docx", "mdx"));
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Content-Type")).toBe("text/mdx");
+      expect(res.headers.get("Content-Disposition")).toContain('filename="component-doc.mdx"');
+
+      const mdx = await res.text();
+      expect(mdx).toContain("export const meta");
+      expect(mdx).toContain("# Heading Section");
+    }, 15000);
+  });
+
+  // -------------------------------------------------------------
+  // 5. PDF -> Image / Text / Word Conversions
   // -------------------------------------------------------------
   describe("PDF to Outputs Conversions", () => {
     let samplePdfBuffer: Buffer;
@@ -195,7 +245,6 @@ describe("Comprehensive Conversion Tests - All Website Supported Formats", () =>
       expect(res.headers.get("Content-Type")).toContain("wordprocessingml.document");
 
       const arrayBuf = await res.arrayBuffer();
-      // DOCX is a zip archive containing [Content_Types].xml and word/document.xml
       const zip = await JSZip.loadAsync(arrayBuf);
       expect(zip.file("[Content_Types].xml")).not.toBeNull();
       expect(zip.file("word/document.xml")).not.toBeNull();
@@ -212,7 +261,7 @@ describe("Comprehensive Conversion Tests - All Website Supported Formats", () =>
   });
 
   // -------------------------------------------------------------
-  // 5. Office & Document Conversions (Word, RTF, ODT, Excel, TXT)
+  // 6. Office & Document Conversions (Word, RTF, ODT, Excel, TXT)
   // -------------------------------------------------------------
   describe("Office Documents to PDF and Formats", () => {
     it("converts TXT to a real PDF document", async () => {
@@ -241,7 +290,6 @@ describe("Comprehensive Conversion Tests - All Website Supported Formats", () =>
 
       expect(res.status).toBe(200);
       const arrayBuf = await res.arrayBuffer();
-      // XLSX is a zip containing xl/workbook.xml
       const zip = await JSZip.loadAsync(arrayBuf);
       expect(zip.file("xl/workbook.xml")).not.toBeNull();
     }, 20000);
@@ -257,7 +305,6 @@ describe("Comprehensive Conversion Tests - All Website Supported Formats", () =>
     }, 20000);
 
     it("converts ODT to PDF document", async () => {
-      // First generate ODT from TXT, then convert ODT to PDF
       const txtBuffer = Buffer.from("ODT Document Testing Section");
       const odtRes = await POST(createMockRequest(txtBuffer, "notes.txt", "odt"));
       expect(odtRes.status).toBe(200);
@@ -273,13 +320,12 @@ describe("Comprehensive Conversion Tests - All Website Supported Formats", () =>
   });
 
   // -------------------------------------------------------------
-  // 6. E-Books (EPUB) Conversions
+  // 7. E-Books (EPUB) Conversions
   // -------------------------------------------------------------
   describe("E-Book Conversions (EPUB)", () => {
     let epubBuffer: Buffer;
 
     beforeAll(async () => {
-      // Generate genuine EPUB archive using TXT to EPUB conversion
       const txt = Buffer.from("Chapter 1: The Odyssey\nOnce upon a time in a digital library...");
       const res = await POST(createMockRequest(txt, "book.txt", "epub"));
       expect(res.status).toBe(200);

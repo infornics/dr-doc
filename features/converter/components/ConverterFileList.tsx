@@ -87,6 +87,12 @@ export default function ConverterFileList(props: ConverterFileListProps) {
                 <SelectItem value="webp" className="text-xs font-medium">
                   WEBP
                 </SelectItem>
+                <SelectItem value="md" className="text-xs font-medium">
+                  MD (Markdown)
+                </SelectItem>
+                <SelectItem value="mdx" className="text-xs font-medium">
+                  MDX
+                </SelectItem>
                 <SelectItem value="txt" className="text-xs font-medium">
                   TXT
                 </SelectItem>

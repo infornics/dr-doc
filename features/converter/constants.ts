@@ -5,6 +5,8 @@ export const SUPPORTED_FORMATS: ConversionFormat[] = [
   { extension: "pdf", label: "PDF Document (.pdf)", category: "document" },
   { extension: "docx", label: "Word Document (.docx)", category: "document" },
   { extension: "doc", label: "Legacy Word (.doc)", category: "document" },
+  { extension: "md", label: "Markdown (.md)", category: "document" },
+  { extension: "mdx", label: "MDX (.mdx)", category: "document" },
   { extension: "txt", label: "Plain Text (.txt)", category: "document" },
   { extension: "rtf", label: "Rich Text (.rtf)", category: "document" },
   { extension: "odt", label: "OpenDocument (.odt)", category: "document" },
@@ -38,12 +40,14 @@ export const FORMAT_CONVERSION_MAP: Record<string, string[]> = {
   heic: ["jpg", "png", "pdf"],
 
   // Documents to...
-  pdf: ["docx", "doc", "txt", "png", "jpg", "epub", "pptx", "xlsx"],
-  docx: ["pdf", "doc", "txt", "rtf", "odt", "epub"],
-  doc: ["docx", "pdf", "txt", "rtf"],
-  txt: ["pdf", "docx", "epub"],
-  rtf: ["pdf", "docx", "txt"],
-  odt: ["pdf", "docx"],
+  pdf: ["docx", "doc", "md", "mdx", "txt", "png", "jpg", "epub", "pptx", "xlsx"],
+  docx: ["pdf", "md", "mdx", "doc", "txt", "rtf", "odt", "epub"],
+  doc: ["docx", "md", "mdx", "pdf", "txt", "rtf"],
+  txt: ["pdf", "docx", "md", "mdx", "epub"],
+  md: ["docx", "pdf", "html", "txt"],
+  mdx: ["docx", "pdf", "txt"],
+  rtf: ["pdf", "docx", "md", "txt"],
+  odt: ["pdf", "docx", "md"],
   xlsx: ["pdf", "csv"],
   pptx: ["pdf"],
   epub: ["pdf", "mobi", "txt"],
@@ -57,9 +61,11 @@ export const DEFAULT_TARGET_BY_SOURCE: Record<string, string> = {
   heic: "jpg",
   svg: "png",
   pdf: "docx",
-  docx: "pdf",
-  doc: "docx",
+  docx: "md",
+  doc: "md",
   txt: "pdf",
+  md: "docx",
+  mdx: "docx",
   rtf: "docx",
   epub: "pdf",
   pptx: "pdf",
@@ -67,6 +73,14 @@ export const DEFAULT_TARGET_BY_SOURCE: Record<string, string> = {
 };
 
 export const POPULAR_PRESETS: PresetConversion[] = [
+  {
+    id: "word-to-md",
+    title: "Word to Markdown (MD)",
+    description: "Convert Word DOCX documents into clean, developer-ready Markdown & MDX",
+    sourceFormat: "docx",
+    targetFormat: "md",
+    iconType: "doc",
+  },
   {
     id: "img-to-pdf",
     title: "Image to PDF",
@@ -90,13 +104,5 @@ export const POPULAR_PRESETS: PresetConversion[] = [
     sourceFormat: "docx",
     targetFormat: "pdf",
     iconType: "doc",
-  },
-  {
-    id: "pdf-to-img",
-    title: "PDF to Images",
-    description: "Extract PDF pages as individual high-res PNG or JPG files",
-    sourceFormat: "pdf",
-    targetFormat: "png",
-    iconType: "pdf",
   },
 ];

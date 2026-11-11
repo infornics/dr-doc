@@ -8,6 +8,8 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import JSZip from "jszip";
+import mammoth from "mammoth";
+import TurndownService from "turndown";
 
 const execAsync = promisify(exec);
 
@@ -116,7 +118,49 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------
-    // CASE 3: PDF TO IMAGE(S) (PDF -> PNG, JPG, WEBP)
+    // CASE 3: WORD (DOCX / DOC) / RTF / ODT TO MARKDOWN (MD / MDX)
+    // -------------------------------------------------------------
+    if ((ext === "docx" || ext === "doc" || ext === "rtf" || ext === "odt" || ext === "txt") && (targetFormat === "md" || targetFormat === "mdx")) {
+      let docxBuffer = buffer;
+
+      // If source is .doc, .rtf, or .odt, normalize it to .docx first via LibreOffice
+      if (ext !== "docx") {
+        const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "drdoc-wordtomd-"));
+        try {
+          const inputPath = path.join(tmpDir, `input.${ext}`);
+          await fs.writeFile(inputPath, buffer);
+          await execAsync(`libreoffice --headless --convert-to docx "${inputPath}" --outdir "${tmpDir}"`);
+          docxBuffer = await fs.readFile(path.join(tmpDir, "input.docx"));
+        } finally {
+          await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+        }
+      }
+
+      // Convert docx buffer to HTML via mammoth
+      const { value: html } = await mammoth.convertToHtml({ buffer: docxBuffer });
+
+      // Convert HTML to Markdown via turndown
+      const turndownService = new TurndownService({
+        headingStyle: "atx",
+        hr: "---",
+        bulletListMarker: "-",
+        codeBlockStyle: "fenced",
+        emDelimiter: "_",
+      });
+
+      let markdown = turndownService.turndown(html);
+
+      if (targetFormat === "mdx") {
+        // MDX formatting: ensure clean line returns and frontmatter-ready structure
+        markdown = `export const meta = {\n  title: "${baseName.replace(/"/g, '\\"')}",\n  date: "${new Date().toISOString().split("T")[0]}"\n};\n\n${markdown}`;
+      }
+
+      const mimeType = targetFormat === "mdx" ? "text/mdx" : "text/markdown";
+      return createBinaryResponse(Buffer.from(markdown, "utf8"), `${baseName}.${targetFormat}`, mimeType);
+    }
+
+    // -------------------------------------------------------------
+    // CASE 4: PDF TO IMAGE(S) (PDF -> PNG, JPG, WEBP)
     // -------------------------------------------------------------
     if (ext === "pdf" && isTargetImage) {
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "drdoc-pdftoimg-"));
@@ -165,9 +209,12 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------
-    // CASE 4: PDF TO TEXT / DOCX
+    // CASE 5: PDF TO TEXT / DOCX / MD / MDX
     // -------------------------------------------------------------
-    if (ext === "pdf" && (targetFormat === "txt" || targetFormat === "docx" || targetFormat === "doc")) {
+    if (
+      ext === "pdf" &&
+      (targetFormat === "txt" || targetFormat === "docx" || targetFormat === "doc" || targetFormat === "md" || targetFormat === "mdx")
+    ) {
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "drdoc-pdftotext-"));
       try {
         const inputPdfPath = path.join(tmpDir, "input.pdf");
@@ -179,6 +226,17 @@ export async function POST(req: NextRequest) {
 
         if (targetFormat === "txt") {
           return createBinaryResponse(Buffer.from(extractedText, "utf8"), `${baseName}.txt`, "text/plain");
+        }
+
+        if (targetFormat === "md" || targetFormat === "mdx") {
+          const mdContent = extractedText
+            .split(/\n\s*\n/)
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0)
+            .join("\n\n");
+
+          const mimeType = targetFormat === "mdx" ? "text/mdx" : "text/markdown";
+          return createBinaryResponse(Buffer.from(mdContent, "utf8"), `${baseName}.${targetFormat}`, mimeType);
         }
 
         // Create formatted DOCX from extracted paragraphs
@@ -229,7 +287,7 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------
-    // CASE 5: EPUB SOURCE HANDLING
+    // CASE 6: EPUB SOURCE HANDLING
     // Extract text from EPUB and convert to PDF or TXT
     // -------------------------------------------------------------
     if (ext === "epub") {
@@ -243,7 +301,6 @@ export async function POST(req: NextRequest) {
 
         for (const htmlFile of htmlFiles) {
           const raw = await zip.files[htmlFile].async("text");
-          // Strip HTML tags to obtain pure readable text
           const text = raw.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
           if (text) accumulatedText += `${text}\n\n`;
         }
@@ -252,8 +309,9 @@ export async function POST(req: NextRequest) {
           accumulatedText = "Empty EPUB Document";
         }
 
-        if (targetFormat === "txt") {
-          return createBinaryResponse(Buffer.from(accumulatedText, "utf8"), `${baseName}.txt`, "text/plain");
+        if (targetFormat === "txt" || targetFormat === "md" || targetFormat === "mdx") {
+          const mime = targetFormat === "txt" ? "text/plain" : "text/markdown";
+          return createBinaryResponse(Buffer.from(accumulatedText, "utf8"), `${baseName}.${targetFormat}`, mime);
         }
 
         // EPUB to PDF via text compilation
@@ -274,7 +332,7 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------
-    // CASE 6: DOCUMENTS TO PDF / DOCX / DOC / RTF / ODT / EPUB / CSV
+    // CASE 7: DOCUMENTS TO PDF / DOCX / DOC / RTF / ODT / EPUB / CSV
     // Via LibreOffice engine
     // -------------------------------------------------------------
     const libreOfficeSources = ["docx", "doc", "txt", "rtf", "odt", "xlsx", "pptx", "csv"];
@@ -337,6 +395,11 @@ function getMimeType(format: string): string {
       return "application/msword";
     case "txt":
       return "text/plain";
+    case "md":
+    case "markdown":
+      return "text/markdown";
+    case "mdx":
+      return "text/mdx";
     case "rtf":
       return "application/rtf";
     case "odt":
