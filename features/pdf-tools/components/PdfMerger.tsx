@@ -43,6 +43,7 @@ export default function PdfMerger() {
   const [mergeItems, setMergeItems] = useState<MergeItem[]>([]);
   const [outputFilename, setOutputFilename] = useState("merged-document.pdf");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultFilename, setResultFilename] = useState<string>("");
 
@@ -311,21 +312,44 @@ export default function PdfMerger() {
     }
 
     setIsProcessing(true);
+    setProgressPercent(10);
+
+    // Smooth progress simulation while server merges pages
+    const progressTimer = setInterval(() => {
+      setProgressPercent((prev) => {
+        if (prev < 40) return prev + 10;
+        if (prev < 80) return prev + 5;
+        if (prev < 95) return prev + 2;
+        return prev;
+      });
+    }, 180);
+
     try {
       const res = await mergePdfsApi({
         files: mergeItems.map((i) => i.file),
         filename: outputFilename || "merged-document.pdf",
+        onProgress: (pct) => {
+          // If upload reaches 100%, show 60% while backend merges
+          const mapped = Math.round(pct * 0.5);
+          setProgressPercent((prev) => Math.max(prev, mapped));
+        },
       });
+
+      clearInterval(progressTimer);
+      setProgressPercent(100);
 
       const url = URL.createObjectURL(res.blob);
       setResultUrl(url);
       setResultFilename(res.filename);
       toast.success("Files merged into PDF successfully!");
     } catch (err: unknown) {
+      clearInterval(progressTimer);
       console.error(err);
       toast.error("Failed to merge files into PDF.");
     } finally {
+      clearInterval(progressTimer);
       setIsProcessing(false);
+      setTimeout(() => setProgressPercent(0), 1000);
     }
   };
 
@@ -528,14 +552,19 @@ export default function PdfMerger() {
 
               <div className="w-full sm:w-auto flex items-center gap-2">
                 <Button
-                  className="w-full sm:w-auto gap-2 font-semibold shadow-sm text-xs h-8.5"
+                  className="relative overflow-hidden w-full sm:w-auto gap-2 font-semibold shadow-sm text-xs h-8.5 min-w-[130px]"
                   onClick={handleMerge}
                   disabled={isProcessing || mergeItems.length < 2}
                 >
                   {isProcessing ? (
                     <>
-                      <HugeiconsIcon icon={Loading03Icon} className="size-3.5 animate-spin" />
-                      <span>Merging...</span>
+                      {/* Integrated progress fill bar */}
+                      <div
+                        className="absolute inset-y-0 left-0 bg-primary-foreground/20 transition-all duration-200"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                      <HugeiconsIcon icon={Loading03Icon} className="relative z-10 size-3.5 animate-spin" />
+                      <span className="relative z-10">Merging {progressPercent}%</span>
                     </>
                   ) : (
                     <>
