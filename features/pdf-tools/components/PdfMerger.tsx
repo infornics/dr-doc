@@ -752,19 +752,28 @@ export default function PdfMerger() {
             </div>
           </div>
 
-          {/* Full Height Viewer Body */}
-          <div className="relative flex-1 flex items-center justify-center p-4 sm:p-8 overflow-auto">
+          {/* Full Height Viewer Body - Clicking backdrop outside image closes modal */}
+          <div
+            onClick={(e) => {
+              // If click is on the backdrop/empty area and not on the controls or image
+              if (e.target === e.currentTarget) {
+                setIsModalFullscreen(false);
+              }
+            }}
+            className="relative flex-1 flex items-center justify-center p-4 sm:p-8 overflow-auto cursor-pointer"
+          >
             {/* Prev button */}
             <Button
               size="icon"
               variant="secondary"
               disabled={selectedIndex <= 0}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (selectedIndex > 0) {
                   setSelectedPreviewId(mergeItems[selectedIndex - 1].id);
                 }
               }}
-              className="absolute left-4 z-10 size-11 rounded-full shadow-lg opacity-80 hover:opacity-100 disabled:opacity-30"
+              className="absolute left-4 z-10 size-11 rounded-full shadow-lg opacity-80 hover:opacity-100 disabled:opacity-30 cursor-default"
               title="Previous Page"
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />
@@ -773,7 +782,8 @@ export default function PdfMerger() {
             <img
               src={selectedItem.thumbnailUrl}
               alt={selectedItem.file.name}
-              className="h-[calc(100vh-7rem)] w-auto max-w-[85vw] object-contain rounded-xl shadow-2xl border border-border/60 bg-white"
+              onClick={(e) => e.stopPropagation()}
+              className="h-[calc(100vh-7rem)] w-auto max-w-[85vw] object-contain rounded-xl shadow-2xl border border-border/60 bg-white cursor-default"
             />
 
             {/* Next button */}
@@ -781,12 +791,13 @@ export default function PdfMerger() {
               size="icon"
               variant="secondary"
               disabled={selectedIndex >= mergeItems.length - 1}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (selectedIndex < mergeItems.length - 1) {
                   setSelectedPreviewId(mergeItems[selectedIndex + 1].id);
                 }
               }}
-              className="absolute right-4 z-10 size-11 rounded-full shadow-lg opacity-80 hover:opacity-100 disabled:opacity-30"
+              className="absolute right-4 z-10 size-11 rounded-full shadow-lg opacity-80 hover:opacity-100 disabled:opacity-30 cursor-default"
               title="Next Page"
             >
               <HugeiconsIcon icon={ArrowRight01Icon} className="size-5" />
