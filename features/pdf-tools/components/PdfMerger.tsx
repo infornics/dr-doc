@@ -549,7 +549,7 @@ export default function PdfMerger() {
                   <a
                     href={resultUrl}
                     download={resultFilename}
-                    className="inline-flex items-center justify-center gap-1.5 h-8.5 px-3 rounded-xl bg-emerald-600 text-white font-medium text-xs hover:bg-emerald-700 shadow-sm transition-all whitespace-nowrap"
+                    className="inline-flex items-center justify-center gap-1.5 h-8.5 px-3 rounded-xl border border-border bg-background hover:bg-muted text-foreground font-semibold text-xs shadow-xs transition-all whitespace-nowrap"
                   >
                     <HugeiconsIcon icon={Download01Icon} className="size-3.5" />
                     <span>Download</span>
