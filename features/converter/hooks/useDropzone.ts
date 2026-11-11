@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
+import { toast } from "sonner";
 import { DropzoneProps } from "../types/dropzone.types";
 
 export function useDropzone({
@@ -23,7 +24,10 @@ export function useDropzone({
     });
 
     if (filtered.length < files.length) {
-      alert(`Only image files (${allowedExtensions.join(", ")}) are supported in Image Tools.`);
+      const rejectedCount = files.length - filtered.length;
+      toast.error("Unsupported file type", {
+        description: `Only image files (${allowedExtensions.slice(0, 5).join(", ")}) are supported in Image Tools. ${rejectedCount} invalid file(s) ignored.`,
+      });
     }
 
     return filtered;
