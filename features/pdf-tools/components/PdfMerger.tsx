@@ -595,30 +595,32 @@ export default function PdfMerger() {
             </div>
 
             {/* High-res / Full-height Page Preview Canvas */}
-            <div className="my-3 relative flex-1 min-h-0 rounded-2xl bg-muted/20 border border-border/60 overflow-hidden flex items-center justify-center p-2">
+            <div
+              onClick={() => {
+                if (selectedItem?.thumbnailUrl) setIsModalFullscreen(true);
+              }}
+              className={`my-3 relative flex-1 min-h-0 rounded-2xl bg-muted/20 border border-border/60 overflow-hidden flex items-center justify-center p-2 ${
+                selectedItem?.thumbnailUrl ? "cursor-zoom-in group" : ""
+              }`}
+            >
               {selectedItem?.isLoadingThumb ? (
                 <div className="flex flex-col items-center gap-2 text-muted-foreground">
                   <HugeiconsIcon icon={Loading03Icon} className="size-8 animate-spin text-primary" />
                   <span className="text-xs font-medium">Rendering preview...</span>
                 </div>
               ) : selectedItem?.thumbnailUrl ? (
-                <div className="relative w-full h-full flex items-center justify-center group">
+                <div className="relative w-full h-full flex items-center justify-center">
                   <img
                     src={selectedItem.thumbnailUrl}
                     alt={selectedItem.file.name}
                     className="w-full h-full object-contain rounded-lg shadow-sm"
                   />
-                  {/* Hover Overlay button for Fullscreen */}
+                  {/* Hover Overlay indicator for Fullscreen */}
                   <div className="absolute inset-0 bg-background/30 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => setIsModalFullscreen(true)}
-                      className="pointer-events-auto gap-2 shadow-md rounded-xl"
-                    >
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background/90 text-foreground text-xs font-semibold shadow-md border border-border/60">
                       <HugeiconsIcon icon={Maximize01Icon} className="size-4" />
-                      <span>View Full Height</span>
-                    </Button>
+                      <span>Click anywhere to view full height</span>
+                    </div>
                   </div>
                 </div>
               ) : (
