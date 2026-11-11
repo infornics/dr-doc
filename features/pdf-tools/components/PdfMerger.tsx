@@ -831,13 +831,12 @@ export default function PdfMerger() {
             <PdfCropper
               initialFile={selectedItem.file}
               initialPreviewUrl={selectedItem.thumbnailUrl}
-              onCropComplete={(croppedBlob, croppedFilename) => {
+              onCropComplete={async (croppedBlob, croppedFilename) => {
                 const croppedFile = new File([croppedBlob], croppedFilename, {
                   type: "application/pdf",
                 });
-                const newThumbUrl = URL.createObjectURL(croppedBlob);
 
-                // Update the item in mergeItems state
+                // Immediately update file and enter loading state for the thumbnail
                 setMergeItems((prev) =>
                   prev.map((item) =>
                     item.id === selectedItem.id
@@ -845,14 +844,40 @@ export default function PdfMerger() {
                           ...item,
                           file: croppedFile,
                           formattedSize: formatFileSize(croppedFile.size),
-                          thumbnailUrl: newThumbUrl,
-                          isLoadingThumb: false,
+                          isImage: false,
+                          isLoadingThumb: true,
                         }
                       : item
                   )
                 );
-
                 setIsCroppingItem(false);
+
+                // Fetch high-res rendered image thumbnail for this cropped PDF
+                try {
+                  const formData = new FormData();
+                  formData.append("file", croppedFile);
+                  const res = await axios.post("/api/preview", formData, {
+                    responseType: "blob",
+                  });
+                  const thumbUrl = URL.createObjectURL(res.data);
+                  setMergeItems((prev) =>
+                    prev.map((item) =>
+                      item.id === selectedItem.id
+                        ? { ...item, thumbnailUrl: thumbUrl, isLoadingThumb: false }
+                        : item
+                    )
+                  );
+                } catch (err) {
+                  console.error("Failed to generate preview for cropped PDF:", err);
+                  setMergeItems((prev) =>
+                    prev.map((item) =>
+                      item.id === selectedItem.id
+                        ? { ...item, isLoadingThumb: false }
+                        : item
+                    )
+                  );
+                }
+
                 toast.success("Page cropped and updated in sequence!");
               }}
               onCancel={() => setIsCroppingItem(false)}
