@@ -71,6 +71,7 @@ describe("PDF Tools API Endpoints", () => {
         "file",
         new File([Buffer.from(pdfBytes)], "three-pages.pdf", { type: "application/pdf" })
       );
+      formData.append("mode", "all");
 
       const req = new NextRequest("http://localhost:3000/api/pdf/split", {
         method: "POST",
@@ -86,6 +87,75 @@ describe("PDF Tools API Endpoints", () => {
       const zipFiles = Object.keys(zip.files);
       expect(zipFiles.length).toBe(3);
       expect(zipFiles.some((f) => f.includes("page-1.pdf"))).toBe(true);
+    });
+
+    it("should split by custom page ranges into separate PDFs inside a zip", async () => {
+      const pdf = await PDFDocument.create();
+      pdf.addPage([400, 400]); // Page 1
+      pdf.addPage([400, 400]); // Page 2
+      pdf.addPage([400, 400]); // Page 3
+      pdf.addPage([400, 400]); // Page 4
+      const pdfBytes = await pdf.save();
+
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([Buffer.from(pdfBytes)], "four-pages.pdf", { type: "application/pdf" })
+      );
+      formData.append("mode", "range");
+      formData.append("range", "1-2, 3-4");
+
+      const req = new NextRequest("http://localhost:3000/api/pdf/split", {
+        method: "POST",
+        body: formData,
+      });
+
+      const res = await splitPdfHandler(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/zip");
+
+      const arrayBuf = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuf);
+      const zipFiles = Object.keys(zip.files);
+      expect(zipFiles.length).toBe(2);
+      expect(zipFiles.some((f) => f.includes("-range-1-2.pdf"))).toBe(true);
+      expect(zipFiles.some((f) => f.includes("-range-3-4.pdf"))).toBe(true);
+    });
+
+    it("should split into equal chunks of N pages into separate PDFs inside a zip", async () => {
+      const pdf = await PDFDocument.create();
+      pdf.addPage([400, 400]); // Page 1
+      pdf.addPage([400, 400]); // Page 2
+      pdf.addPage([400, 400]); // Page 3
+      pdf.addPage([400, 400]); // Page 4
+      pdf.addPage([400, 400]); // Page 5
+      const pdfBytes = await pdf.save();
+
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([Buffer.from(pdfBytes)], "five-pages.pdf", { type: "application/pdf" })
+      );
+      formData.append("mode", "chunks");
+      formData.append("chunkSize", "2");
+
+      const req = new NextRequest("http://localhost:3000/api/pdf/split", {
+        method: "POST",
+        body: formData,
+      });
+
+      const res = await splitPdfHandler(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/zip");
+
+      const arrayBuf = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuf);
+      const zipFiles = Object.keys(zip.files);
+      // 5 pages with chunk size 2 = 3 files: (1-2, 3-4, 5)
+      expect(zipFiles.length).toBe(3);
+      expect(zipFiles.some((f) => f.includes("chunk-1-pages-1-to-2.pdf"))).toBe(true);
+      expect(zipFiles.some((f) => f.includes("chunk-2-pages-3-to-4.pdf"))).toBe(true);
+      expect(zipFiles.some((f) => f.includes("chunk-3-pages-5-to-5.pdf"))).toBe(true);
     });
   });
 

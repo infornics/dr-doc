@@ -3,13 +3,22 @@ import { PDFDocument } from "pdf-lib";
 
 export interface SplitPdfParams {
   file: File;
+  mode?: "all" | "range" | "chunks";
+  range?: string;
+  chunkSize?: number;
 }
 
 export async function splitPdfApi({
   file,
+  mode = "all",
+  range = "",
+  chunkSize = 2,
 }: SplitPdfParams): Promise<{ blob: Blob; filename: string }> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("mode", mode);
+  if (range) formData.append("range", range);
+  formData.append("chunkSize", chunkSize.toString());
 
   const res = await axios.post("/api/pdf/split", formData, {
     responseType: "blob",
