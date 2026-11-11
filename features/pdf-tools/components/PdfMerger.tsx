@@ -98,15 +98,24 @@ export default function PdfMerger() {
         f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
       const id = `${f.name}-${Date.now()}-${Math.random()}`;
 
-      // Trigger thumbnail fetching
-      fetchThumbnail(id, f, !isPdf);
+      // For images, generate local instant object URL immediately on the client (0ms delay)
+      let initialThumbUrl: string | undefined = undefined;
+      let shouldLoadServerThumb = false;
+
+      if (!isPdf) {
+        initialThumbUrl = URL.createObjectURL(f);
+      } else {
+        shouldLoadServerThumb = true;
+        fetchThumbnail(id, f, false);
+      }
 
       return {
         id,
         file: f,
         formattedSize: formatFileSize(f.size),
         isImage: !isPdf,
-        isLoadingThumb: true,
+        thumbnailUrl: initialThumbUrl,
+        isLoadingThumb: shouldLoadServerThumb,
       };
     });
 

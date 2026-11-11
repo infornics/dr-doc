@@ -31,12 +31,13 @@ export async function POST(req: NextRequest) {
 
       await fs.writeFile(inputPdf, buffer);
 
-      // Render 1st page at 72 DPI using system pdftoppm
-      await execAsync(`pdftoppm -png -r 72 -f 1 -l 1 "${inputPdf}" "${outPrefix}"`);
+      // Render 1st page quickly with low-overhead jpeg at 50 DPI directly to webp
+      await execAsync(`pdftoppm -jpeg -jpegopt quality=70 -r 50 -f 1 -l 1 "${inputPdf}" "${outPrefix}"`);
 
-      // @ts-expect-error Turbopack dynamic tracing hint
-      const files = await fs.readdir(/*turbopackIgnore: true*/ tempDir);
-      const generated = files.find((f: string) => f.startsWith("page-") && f.endsWith(".png"));
+      const files = await fs.readdir(tempDir);
+      const generated = files.find(
+        (f: string) => f.startsWith("page-") && (f.endsWith(".jpg") || f.endsWith(".jpeg") || f.endsWith(".png"))
+      );
 
       if (!generated) {
         throw new Error("Could not render PDF preview.");
@@ -44,8 +45,8 @@ export async function POST(req: NextRequest) {
 
       const generatedPath = path.join(tempDir, generated);
       const thumbBuffer = await sharp(generatedPath)
-        .resize({ width: 300, height: 400, fit: "inside" })
-        .webp({ quality: 80 })
+        .resize({ width: 220, height: 280, fit: "inside" })
+        .webp({ quality: 70 })
         .toBuffer();
 
       return new NextResponse(new Uint8Array(thumbBuffer), {
