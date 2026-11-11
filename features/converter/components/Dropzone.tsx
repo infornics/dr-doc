@@ -37,6 +37,7 @@ export default function Dropzone(props: DropzoneProps) {
         ref={inputRef}
         type="file"
         multiple
+        accept={props.accept}
         className="hidden"
         onChange={handleFileInputChange}
       />
@@ -51,10 +52,10 @@ export default function Dropzone(props: DropzoneProps) {
 
       <div className="max-w-md space-y-1.5">
         <h3 className="text-lg md:text-xl font-semibold tracking-tight text-foreground">
-          Drag & drop your files here
+          {props.title || "Drag & drop your files here"}
         </h3>
         <p className="text-sm text-muted-foreground">
-          Supports Images (PNG, JPG, WEBP), Documents (PDF, DOCX, TXT), E-books and more.
+          {props.subtitle || "Supports Images (PNG, JPG, WEBP), Documents (PDF, DOCX, TXT), E-books and more."}
         </p>
       </div>
 

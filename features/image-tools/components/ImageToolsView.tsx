@@ -97,7 +97,14 @@ export default function ImageToolsView({ currentTool }: ImageToolsViewProps) {
           </p>
         </div>
 
-        {currentTool === "convert" && <ConverterSection />}
+        {currentTool === "convert" && (
+          <ConverterSection
+            accept="image/*"
+            allowedExtensions={["png", "jpg", "jpeg", "webp", "svg", "gif", "avif", "tiff"]}
+            dropzoneTitle="Drag & drop your images here"
+            dropzoneSubtitle="Supports PNG, JPG, JPEG, WEBP, SVG, and other image formats."
+          />
+        )}
         {currentTool === "crop" && <ImageCropper />}
         {currentTool === "merge" && <ImageMergeToPdf />}
       </div>
