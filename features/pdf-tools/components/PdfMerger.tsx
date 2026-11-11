@@ -555,7 +555,7 @@ export default function PdfMerger() {
 
               <div className="w-full sm:w-auto flex items-center gap-2">
                 <Button
-                  className="relative overflow-hidden w-full sm:w-auto gap-2 font-semibold shadow-sm text-xs h-8.5 min-w-[130px]"
+                  className="relative overflow-hidden w-full sm:w-auto gap-2 font-bold shadow-sm text-xs h-8.5 min-w-[130px] disabled:opacity-100 disabled:cursor-not-allowed"
                   onClick={handleMerge}
                   disabled={isProcessing || mergeItems.length < 2}
                 >
@@ -563,16 +563,18 @@ export default function PdfMerger() {
                     <>
                       {/* Integrated progress fill bar */}
                       <div
-                        className="absolute inset-y-0 left-0 bg-primary-foreground/20 transition-all duration-200"
+                        className="absolute inset-y-0 left-0 bg-black/15 dark:bg-black/25 transition-all duration-200 pointer-events-none"
                         style={{ width: `${progressPercent}%` }}
                       />
-                      <HugeiconsIcon icon={Loading03Icon} className="relative z-10 size-3.5 animate-spin" />
-                      <span className="relative z-10">Merging {progressPercent}%</span>
+                      <HugeiconsIcon icon={Loading03Icon} className="relative z-10 size-3.5 animate-spin text-primary-foreground" />
+                      <span className="relative z-10 text-primary-foreground font-bold tracking-wide">
+                        Merging {progressPercent}%
+                      </span>
                     </>
                   ) : (
                     <>
-                      <HugeiconsIcon icon={File01Icon} className="size-3.5" />
-                      <span>Merge {mergeItems.length} Pages</span>
+                      <HugeiconsIcon icon={File01Icon} className="size-3.5 text-primary-foreground" />
+                      <span className="text-primary-foreground font-bold">Merge {mergeItems.length} Pages</span>
                     </>
                   )}
                 </Button>
