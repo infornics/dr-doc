@@ -1,0 +1,13 @@
+services:
+  dr-doc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dr-doc-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+
