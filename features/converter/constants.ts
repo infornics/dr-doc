@@ -32,17 +32,17 @@ export const SUPPORTED_FORMATS: ConversionFormat[] = [
 
 export const FORMAT_CONVERSION_MAP: Record<string, string[]> = {
   // Images to...
-  png: ["pdf", "jpg", "webp", "svg"],
-  jpg: ["pdf", "png", "webp"],
-  jpeg: ["pdf", "png", "webp"],
-  webp: ["png", "jpg", "pdf"],
-  svg: ["png", "pdf", "jpg"],
-  heic: ["jpg", "png", "pdf"],
+  png: ["pdf", "jpg", "webp", "svg", "pptx"],
+  jpg: ["pdf", "png", "webp", "pptx"],
+  jpeg: ["pdf", "png", "webp", "pptx"],
+  webp: ["png", "jpg", "pdf", "pptx"],
+  svg: ["png", "pdf", "jpg", "pptx"],
+  heic: ["jpg", "png", "pdf", "pptx"],
 
   // Documents to...
-  pdf: ["docx", "doc", "md", "mdx", "txt", "png", "jpg", "epub", "pptx", "xlsx"],
-  docx: ["pdf", "md", "mdx", "doc", "txt", "rtf", "odt", "epub"],
-  doc: ["docx", "md", "mdx", "pdf", "txt", "rtf"],
+  pdf: ["pptx", "docx", "doc", "md", "mdx", "txt", "png", "jpg", "epub", "xlsx"],
+  docx: ["pptx", "pdf", "md", "mdx", "doc", "txt", "rtf", "odt", "epub"],
+  doc: ["pptx", "docx", "md", "mdx", "pdf", "txt", "rtf"],
   txt: ["pdf", "docx", "md", "mdx", "epub"],
   md: ["docx", "pdf", "html", "txt"],
   mdx: ["docx", "pdf", "txt"],

@@ -29,6 +29,10 @@ export async function POST(req: NextRequest) {
       buffer[2] === 0x44 &&
       buffer[3] === 0x46;
 
+    const fileNameLower = file.name.toLowerCase();
+    const isDocx = fileNameLower.endsWith(".docx") || fileNameLower.endsWith(".doc");
+    const isPptx = fileNameLower.endsWith(".pptx") || fileNameLower.endsWith(".ppt");
+
     if (isPdf) {
       tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pdf-thumb-"));
       const inputPdf = path.join(tempDir, "input.pdf");
@@ -50,6 +54,45 @@ export async function POST(req: NextRequest) {
 
       if (!generated) {
         throw new Error("Could not render PDF preview.");
+      }
+
+      const generatedPath = path.join(tempDir, generated);
+      const thumbBuffer = await sharp(generatedPath)
+        .resize({ width: 1200, height: 1600, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 85 })
+        .toBuffer();
+
+      return new NextResponse(new Uint8Array(thumbBuffer), {
+        status: 200,
+        headers: {
+          "Content-Type": "image/webp",
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    } else if (isDocx || isPptx) {
+      // Office document (DOCX, PPTX) preview via LibreOffice conversion to PDF then pdftoppm
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-thumb-"));
+      const ext = isDocx ? (fileNameLower.endsWith(".doc") ? "doc" : "docx") : (fileNameLower.endsWith(".ppt") ? "ppt" : "pptx");
+      const inputDoc = path.join(tempDir, `input.${ext}`);
+      const outPrefix = path.join(tempDir, "page");
+
+      await fs.writeFile(inputDoc, buffer);
+      await execAsync(`libreoffice --headless --convert-to pdf "${inputDoc}" --outdir "${tempDir}"`);
+
+      const pdfPath = path.join(tempDir, "input.pdf");
+      await execAsync(
+        `pdftoppm -jpeg -jpegopt quality=85 -r 150 -f 1 -l 1 "${pdfPath}" "${outPrefix}"`
+      );
+
+      const files = await fs.readdir(tempDir);
+      const generated = files.find(
+        (f: string) =>
+          f.startsWith("page-") &&
+          (f.endsWith(".jpg") || f.endsWith(".jpeg") || f.endsWith(".png"))
+      );
+
+      if (!generated) {
+        throw new Error("Could not render Office document preview.");
       }
 
       const generatedPath = path.join(tempDir, generated);

@@ -9,6 +9,7 @@ import path from "path";
 import os from "os";
 import JSZip from "jszip";
 import mammoth from "mammoth";
+import pptxgen from "pptxgenjs";
 import TurndownService from "turndown";
 // @ts-expect-error turndown-plugin-gfm does not supply official @types
 import { gfm } from "turndown-plugin-gfm";
@@ -79,6 +80,53 @@ export async function POST(req: NextRequest) {
       const pdfBytes = await pdfDoc.save();
       const outBuffer = Buffer.from(pdfBytes);
       return createBinaryResponse(outBuffer, `${baseName}.pdf`, "application/pdf");
+    }
+
+    // -------------------------------------------------------------
+    // CASE 1B: IMAGE TO PPT / PPTX
+    // -------------------------------------------------------------
+    if (isSourceImage && (targetFormat === "pptx" || targetFormat === "ppt")) {
+      const img = sharp(buffer, { failOn: "none" }).rotate();
+      const meta = await img.metadata();
+      if (!meta.width || !meta.height) {
+        return NextResponse.json({ error: "Invalid image file." }, { status: 400 });
+      }
+
+      const pngBuffer = await img.png().toBuffer();
+      const pptx = new pptxgen();
+      pptx.layout = "LAYOUT_16x9";
+      const slideW = 10;
+      const slideH = 5.625;
+
+      const imgRatio = meta.width / meta.height;
+      const slideRatio = slideW / slideH;
+      let w: number;
+      let h: number;
+      if (imgRatio > slideRatio) {
+        w = slideW;
+        h = slideW / imgRatio;
+      } else {
+        h = slideH;
+        w = slideH * imgRatio;
+      }
+      const x = (slideW - w) / 2;
+      const y = (slideH - h) / 2;
+
+      const slide = pptx.addSlide();
+      slide.addImage({
+        data: `image/png;base64,${pngBuffer.toString("base64")}`,
+        x,
+        y,
+        w,
+        h,
+      });
+
+      const outBuffer = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
+      return createBinaryResponse(
+        outBuffer,
+        `${baseName}.pptx`,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+      );
     }
 
     // -------------------------------------------------------------
@@ -339,6 +387,86 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------
+    // CASE 6B: PDF OR DOCX TO PPTX / PPT
+    // -------------------------------------------------------------
+    if (
+      (ext === "pdf" || ext === "docx" || ext === "doc") &&
+      (targetFormat === "pptx" || targetFormat === "ppt")
+    ) {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "drdoc-to-pptx-"));
+      try {
+        let pdfPath = path.join(tmpDir, "source.pdf");
+        if (ext === "pdf") {
+          await fs.writeFile(pdfPath, buffer);
+        } else {
+          // First convert docx/doc to pdf via LibreOffice
+          const docPath = path.join(tmpDir, `input.${ext}`);
+          await fs.writeFile(docPath, buffer);
+          await execAsync(
+            `libreoffice --headless --convert-to pdf "${docPath}" --outdir "${tmpDir}"`
+          );
+          pdfPath = path.join(tmpDir, "input.pdf");
+        }
+
+        // Render PDF pages at 150 DPI
+        const pagePrefix = path.join(tmpDir, "page");
+        await execAsync(`pdftoppm -png -r 150 "${pdfPath}" "${pagePrefix}"`);
+
+        const files = (await fs.readdir(tmpDir))
+          .filter((f) => f.startsWith("page-") && f.endsWith(".png"))
+          .sort();
+
+        if (files.length === 0) {
+          throw new Error("Could not extract pages for PowerPoint slides.");
+        }
+
+        const pptx = new pptxgen();
+        pptx.layout = "LAYOUT_16x9";
+        const slideW = 10;
+        const slideH = 5.625;
+
+        for (const fileItem of files) {
+          const filePath = path.join(tmpDir, fileItem);
+          const imgBuf = await fs.readFile(filePath);
+          const meta = await sharp(imgBuf).metadata();
+          if (!meta.width || !meta.height) continue;
+
+          const imgRatio = meta.width / meta.height;
+          const slideRatio = slideW / slideH;
+          let w: number;
+          let h: number;
+          if (imgRatio > slideRatio) {
+            w = slideW;
+            h = slideW / imgRatio;
+          } else {
+            h = slideH;
+            w = slideH * imgRatio;
+          }
+          const x = (slideW - w) / 2;
+          const y = (slideH - h) / 2;
+
+          const slide = pptx.addSlide();
+          slide.addImage({
+            data: `image/png;base64,${imgBuf.toString("base64")}`,
+            x,
+            y,
+            w,
+            h,
+          });
+        }
+
+        const pptxBuffer = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
+        return createBinaryResponse(
+          pptxBuffer,
+          `${baseName}.pptx`,
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        );
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+
+    // -------------------------------------------------------------
     // CASE 7: DOCUMENTS TO PDF / DOCX / DOC / RTF / ODT / EPUB / CSV
     // Via LibreOffice engine
     // -------------------------------------------------------------
@@ -463,6 +591,10 @@ function getMimeType(format: string): string {
       return "image/svg+xml";
     case "epub":
       return "application/epub+zip";
+    case "pptx":
+      return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    case "ppt":
+      return "application/vnd.ms-powerpoint";
     case "zip":
       return "application/zip";
     default:
