@@ -20,7 +20,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 import axios from "axios";
-import { mergePptApi } from "../services/pptTools.service";
+import { mergePptApi, expandOfficeDocumentPages } from "../services/pptTools.service";
 import { splitPdfToSinglePageFiles } from "@/features/pdf-tools/services/pdfSplit.service";
 
 interface PptMergeItem {
@@ -130,16 +130,25 @@ export default function PptMerger() {
 
     if (validFiles.length === 0) return;
 
-    // Expand any multi-page PDF into separate single-page files
-    // so each individual page gets its own card and preview in the presentation gallery
+    // Expand multi-page PDFs, DOCX, DOC, PPTX, and PPT documents into separate single-page files
+    // so every individual page or slide gets its own card and preview in the presentation gallery
     const expandedFiles: File[] = [];
 
     for (const f of validFiles) {
       const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+      const ext = f.name.split(".").pop()?.toLowerCase();
+      const isOfficeDoc = ext === "docx" || ext === "doc" || ext === "pptx" || ext === "ppt";
 
       if (isPdf) {
         try {
           const singlePages = await splitPdfToSinglePageFiles(f);
+          expandedFiles.push(...singlePages);
+        } catch {
+          expandedFiles.push(f);
+        }
+      } else if (isOfficeDoc) {
+        try {
+          const singlePages = await expandOfficeDocumentPages(f);
           expandedFiles.push(...singlePages);
         } catch {
           expandedFiles.push(f);

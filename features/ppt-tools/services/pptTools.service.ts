@@ -1,4 +1,5 @@
 import axios from "axios";
+import JSZip from "jszip";
 
 export interface MergePptParams {
   files: File[];
@@ -34,3 +35,40 @@ export async function mergePptApi({
   return { blob: res.data, filename: finalFilename };
 }
 
+/**
+ * Expands a DOCX, DOC, PPTX, or PPT document into individual single-page File objects
+ * so every page/slide has its own card, thumbnail, and reordering capability in the gallery.
+ */
+export async function expandOfficeDocumentPages(file: File): Promise<File[]> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await axios.post("/api/office/expand-pages", formData, {
+    responseType: "arraybuffer",
+  });
+
+  const zip = await JSZip.loadAsync(res.data);
+  const fileNames = Object.keys(zip.files)
+    .filter((name) => name.toLowerCase().endsWith(".pdf"))
+    .sort();
+
+  if (fileNames.length === 0) {
+    return [file];
+  }
+
+  const baseName = file.name.replace(/\.[^/.]+$/, "");
+  const pageFiles: File[] = [];
+
+  for (let i = 0; i < fileNames.length; i++) {
+    const entry = zip.files[fileNames[i]];
+    const buffer = await entry.async("uint8array");
+    const pageFile = new File(
+      [buffer as unknown as BlobPart],
+      `${baseName} (Page ${i + 1}).pdf`,
+      { type: "application/pdf" }
+    );
+    pageFiles.push(pageFile);
+  }
+
+  return pageFiles;
+}

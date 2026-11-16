@@ -5,7 +5,8 @@ import { NextRequest } from "next/server";
 import { POST as mergePptHandler } from "@/app/api/ppt/merge/route";
 import { POST as convertHandler } from "@/app/api/convert/route";
 import { POST as previewHandler } from "@/app/api/preview/route";
-import { Document, Packer, Paragraph, TextRun } from "docx";
+import { POST as expandPagesHandler } from "@/app/api/office/expand-pages/route";
+import { Document, Packer, Paragraph, TextRun, PageBreak } from "docx";
 import { PDFDocument } from "pdf-lib";
 import sharp from "sharp";
 import JSZip from "jszip";
@@ -181,6 +182,47 @@ describe("PowerPoint (PPT) Tools Endpoints", () => {
       expect(meta.format).toBe("webp");
       expect(meta.width).toBeGreaterThan(0);
       expect(meta.height).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Office Document Expand Pages API (/api/office/expand-pages)", () => {
+    it("expands a multi-page DOCX document into separate single-page PDFs in a zip", async () => {
+      const doc = new Document({
+        sections: [
+          {
+            children: [
+              new Paragraph({ children: [new TextRun("Page 1 Heading")] }),
+              new Paragraph({ children: [new PageBreak()] }),
+              new Paragraph({ children: [new TextRun("Page 2 Heading")] }),
+            ],
+          },
+        ],
+      });
+      const docxBytes = await Packer.toBuffer(doc);
+
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([new Uint8Array(docxBytes)], "MultiPage.docx", {
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        })
+      );
+
+      const req = new NextRequest("http://localhost:3000/api/office/expand-pages", {
+        method: "POST",
+        body: formData,
+      });
+
+      const res = await expandPagesHandler(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/zip");
+
+      const arrayBuf = await res.arrayBuffer();
+      const zip = await JSZip.loadAsync(arrayBuf);
+      const fileNames = Object.keys(zip.files).filter((k) => k.endsWith(".pdf"));
+      expect(fileNames.length).toBe(2);
+      expect(fileNames.some((f) => f.includes("page-01.pdf"))).toBe(true);
+      expect(fileNames.some((f) => f.includes("page-02.pdf"))).toBe(true);
     });
   });
 });
