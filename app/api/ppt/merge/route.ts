@@ -6,6 +6,8 @@ import path from "path";
 import os from "os";
 import sharp from "sharp";
 import pptxgen from "pptxgenjs";
+import { hasLibreOffice, hasPoppler } from "@/lib/systemChecks";
+import { parseDocxIntoSections } from "@/lib/pureJsDocxParser";
 
 const execAsync = promisify(exec);
 
@@ -139,57 +141,99 @@ export async function POST(req: NextRequest) {
           console.error(`Failed to render PDF ${fileName}:`, pdfErr);
         }
       } else if (isDocx || isPptx) {
-        // Convert docx or pptx to pdf via LibreOffice first, then render pages as slides
-        const subDir = path.join(tmpDir, `item-${i}`);
-        const profileDir = path.join(subDir, "lo-profile");
-        await fs.mkdir(profileDir, { recursive: true });
-        const inputFilePath = path.join(subDir, `input.${ext}`);
-        await fs.writeFile(inputFilePath, buffer);
+        const libreReady = await hasLibreOffice();
+        const popplerReady = await hasPoppler();
 
-        try {
-          await execAsync(
-            `libreoffice -env:UserInstallation="file://${profileDir}" --headless --convert-to pdf "${inputFilePath}" --outdir "${subDir}"`
-          );
-          const pdfPath = path.join(subDir, "input.pdf");
-          const prefix = path.join(subDir, "page");
-          await execAsync(`pdftoppm -png -r 150 "${pdfPath}" "${prefix}"`);
+        if (libreReady && popplerReady) {
+          // Convert docx or pptx to pdf via LibreOffice first, then render pages as slides
+          const subDir = path.join(tmpDir, `item-${i}`);
+          const profileDir = path.join(subDir, "lo-profile");
+          await fs.mkdir(profileDir, { recursive: true });
+          const inputFilePath = path.join(subDir, `input.${ext}`);
+          await fs.writeFile(inputFilePath, buffer);
 
-          const renderedPages = (await fs.readdir(subDir))
-            .filter((f) => f.startsWith("page-") && f.endsWith(".png"))
-            .sort();
+          try {
+            await execAsync(
+              `libreoffice -env:UserInstallation="file://${profileDir}" --headless --convert-to pdf "${inputFilePath}" --outdir "${subDir}"`
+            );
+            const pdfPath = path.join(subDir, "input.pdf");
+            const prefix = path.join(subDir, "page");
+            await execAsync(`pdftoppm -png -r 150 "${pdfPath}" "${prefix}"`);
 
-          for (const pageName of renderedPages) {
-            const pagePath = path.join(subDir, pageName);
-            const pageBuf = await fs.readFile(pagePath);
-            const meta = await sharp(pageBuf).metadata();
-            if (!meta.width || !meta.height) continue;
+            const renderedPages = (await fs.readdir(subDir))
+              .filter((f) => f.startsWith("page-") && f.endsWith(".png"))
+              .sort();
 
-            const imgRatio = meta.width / meta.height;
-            const slideRatio = SLIDE_WIDTH / SLIDE_HEIGHT;
-            let w: number;
-            let h: number;
-            if (imgRatio > slideRatio) {
-              w = SLIDE_WIDTH;
-              h = SLIDE_WIDTH / imgRatio;
-            } else {
-              h = SLIDE_HEIGHT;
-              w = SLIDE_HEIGHT * imgRatio;
+            for (const pageName of renderedPages) {
+              const pagePath = path.join(subDir, pageName);
+              const pageBuf = await fs.readFile(pagePath);
+              const meta = await sharp(pageBuf).metadata();
+              if (!meta.width || !meta.height) continue;
+
+              const imgRatio = meta.width / meta.height;
+              const slideRatio = SLIDE_WIDTH / SLIDE_HEIGHT;
+              let w: number;
+              let h: number;
+              if (imgRatio > slideRatio) {
+                w = SLIDE_WIDTH;
+                h = SLIDE_WIDTH / imgRatio;
+              } else {
+                h = SLIDE_HEIGHT;
+                w = SLIDE_HEIGHT * imgRatio;
+              }
+              const x = (SLIDE_WIDTH - w) / 2;
+              const y = (SLIDE_HEIGHT - h) / 2;
+
+              const slide = pptx.addSlide();
+              slide.addImage({
+                data: `image/png;base64,${pageBuf.toString("base64")}`,
+                x,
+                y,
+                w,
+                h,
+              });
+              totalSlidesAdded++;
             }
-            const x = (SLIDE_WIDTH - w) / 2;
-            const y = (SLIDE_HEIGHT - h) / 2;
-
-            const slide = pptx.addSlide();
-            slide.addImage({
-              data: `image/png;base64,${pageBuf.toString("base64")}`,
-              x,
-              y,
-              w,
-              h,
-            });
-            totalSlidesAdded++;
+          } catch (officeErr) {
+            console.error(`Failed to convert office doc ${fileName}:`, officeErr);
           }
-        } catch (officeErr) {
-          console.error(`Failed to convert office doc ${fileName}:`, officeErr);
+        } else if (isDocx) {
+          // Pure JavaScript fallback for DOCX slides (Netlify / Serverless)
+          try {
+            const sections = await parseDocxIntoSections(buffer);
+            for (const sec of sections) {
+              const slide = pptx.addSlide();
+              slide.background = { color: "F8FAFC" };
+
+              if (sec.title) {
+                slide.addText(sec.title.slice(0, 70), {
+                  x: 0.8,
+                  y: 0.6,
+                  w: 8.4,
+                  h: 0.8,
+                  fontSize: 22,
+                  bold: true,
+                  color: "1E293B",
+                });
+              }
+
+              const bodyText = sec.paragraphs.slice(sec.title ? 1 : 0, 6).join("\n\n");
+              if (bodyText) {
+                slide.addText(bodyText, {
+                  x: 0.8,
+                  y: sec.title ? 1.5 : 0.8,
+                  w: 8.4,
+                  h: 3.6,
+                  fontSize: 14,
+                  color: "334155",
+                  lineSpacing: 22,
+                });
+              }
+              totalSlidesAdded++;
+            }
+          } catch (parseErr) {
+            console.error(`Failed to parse DOCX in JS mode:`, parseErr);
+          }
         }
       }
     }
