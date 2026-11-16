@@ -45,6 +45,8 @@ export default function PdfMerger() {
   const [mergeItems, setMergeItems] = useState<MergeItem[]>([]);
   const [outputFilename, setOutputFilename] = useState("merged-document.pdf");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isExpanding, setIsExpanding] = useState(false);
+  const [expandingCount, setExpandingCount] = useState(0);
   const [progressPercent, setProgressPercent] = useState(0);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [resultFilename, setResultFilename] = useState<string>("");
@@ -117,53 +119,61 @@ export default function PdfMerger() {
 
     if (validFiles.length === 0) return;
 
-    // Expand any multi-page PDF into separate single-page files
-    // so every individual page gets its own card and preview in the gallery
-    const expandedFiles: File[] = [];
+    setIsExpanding(true);
+    setExpandingCount(validFiles.length);
 
-    for (const f of validFiles) {
-      const isPdf =
-        f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+    try {
+      // Expand any multi-page PDF into separate single-page files
+      // so every individual page gets its own card and preview in the gallery
+      const expandedFiles: File[] = [];
 
-      if (isPdf) {
-        try {
-          const singlePages = await splitPdfToSinglePageFiles(f);
-          expandedFiles.push(...singlePages);
-        } catch {
+      for (const f of validFiles) {
+        const isPdf =
+          f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+
+        if (isPdf) {
+          try {
+            const singlePages = await splitPdfToSinglePageFiles(f);
+            expandedFiles.push(...singlePages);
+          } catch {
+            expandedFiles.push(f);
+          }
+        } else {
           expandedFiles.push(f);
         }
-      } else {
-        expandedFiles.push(f);
       }
+
+      const newItems: MergeItem[] = expandedFiles.map((f) => {
+        const isPdf =
+          f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+        const id = `${f.name}-${Date.now()}-${Math.random()}`;
+
+        let initialThumbUrl: string | undefined = undefined;
+        let shouldLoadServerThumb = false;
+
+        if (!isPdf) {
+          initialThumbUrl = URL.createObjectURL(f);
+        } else {
+          shouldLoadServerThumb = true;
+          fetchThumbnail(id, f, false);
+        }
+
+        return {
+          id,
+          file: f,
+          formattedSize: formatFileSize(f.size),
+          isImage: !isPdf,
+          thumbnailUrl: initialThumbUrl,
+          isLoadingThumb: shouldLoadServerThumb,
+        };
+      });
+
+      setMergeItems((prev) => [...prev, ...newItems]);
+      setResultUrl(null);
+    } finally {
+      setIsExpanding(false);
+      setExpandingCount(0);
     }
-
-    const newItems: MergeItem[] = expandedFiles.map((f) => {
-      const isPdf =
-        f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
-      const id = `${f.name}-${Date.now()}-${Math.random()}`;
-
-      let initialThumbUrl: string | undefined = undefined;
-      let shouldLoadServerThumb = false;
-
-      if (!isPdf) {
-        initialThumbUrl = URL.createObjectURL(f);
-      } else {
-        shouldLoadServerThumb = true;
-        fetchThumbnail(id, f, false);
-      }
-
-      return {
-        id,
-        file: f,
-        formattedSize: formatFileSize(f.size),
-        isImage: !isPdf,
-        thumbnailUrl: initialThumbUrl,
-        isLoadingThumb: shouldLoadServerThumb,
-      };
-    });
-
-    setMergeItems((prev) => [...prev, ...newItems]);
-    setResultUrl(null);
   };
 
   const removeFile = (id: string) => {
@@ -375,8 +385,11 @@ export default function PdfMerger() {
           e.preventDefault();
           if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
         }}
-        className="relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border/80 bg-muted/20 p-10 text-center transition-all hover:border-primary/50 hover:bg-muted/40 cursor-pointer select-none"
+        className={`relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-border/80 bg-muted/20 p-10 text-center transition-all hover:border-primary/50 hover:bg-muted/40 cursor-pointer select-none ${
+          isExpanding ? "pointer-events-none opacity-80" : ""
+        }`}
         onClick={() => {
+          if (isExpanding) return;
           const input = document.createElement("input");
           input.type = "file";
           input.multiple = true;
@@ -389,17 +402,65 @@ export default function PdfMerger() {
         }}
       >
         <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-3 shadow-xs">
-          <HugeiconsIcon icon={Upload01Icon} className="size-7" />
+          {isExpanding ? (
+            <HugeiconsIcon icon={Loading03Icon} className="size-7 animate-spin" />
+          ) : (
+            <HugeiconsIcon icon={Upload01Icon} className="size-7" />
+          )}
         </div>
-        <h3 className="text-lg font-semibold text-foreground">Select PDFs or Images to Merge</h3>
+        <h3 className="text-lg font-semibold text-foreground">
+          {isExpanding
+            ? `Processing & expanding ${expandingCount} document${expandingCount > 1 ? "s" : ""}...`
+            : "Select PDFs or Images to Merge"}
+        </h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          Drag & drop or click to upload PDF files or images (PNG, JPG, WEBP)
+          {isExpanding
+            ? "Extracting individual pages for the document gallery..."
+            : "Drag & drop or click to upload PDF files or images (PNG, JPG, WEBP)"}
         </p>
-        <Button variant="secondary" size="sm" className="mt-4 gap-2">
-          <HugeiconsIcon icon={Upload01Icon} className="size-4" />
-          <span>Add Files</span>
+        <Button variant="secondary" size="sm" disabled={isExpanding} className="mt-4 gap-2">
+          {isExpanding ? (
+            <>
+              <HugeiconsIcon icon={Loading03Icon} className="size-4 animate-spin" />
+              <span>Processing...</span>
+            </>
+          ) : (
+            <>
+              <HugeiconsIcon icon={Upload01Icon} className="size-4" />
+              <span>Add Files</span>
+            </>
+          )}
         </Button>
       </div>
+
+      {/* Loading Skeleton Grid when documents are expanding */}
+      {isExpanding && (
+        <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-xs space-y-4 animate-pulse">
+          <div className="flex items-center justify-between pb-3 border-b border-border/60">
+            <div className="space-y-1">
+              <div className="h-5 w-48 bg-muted rounded-md" />
+              <div className="h-3 w-64 bg-muted/60 rounded-md" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {Array.from({ length: Math.min(8, Math.max(3, expandingCount * 2)) }).map((_, idx) => (
+              <div
+                key={idx}
+                className="rounded-2xl border border-border/60 bg-muted/20 p-3 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="h-4 w-12 bg-muted rounded-md" />
+                  <div className="h-4 w-10 bg-muted rounded-md" />
+                </div>
+                <div className="aspect-3/4 w-full rounded-xl bg-muted/50 flex items-center justify-center">
+                  <HugeiconsIcon icon={Loading03Icon} className="size-6 text-muted-foreground animate-spin" />
+                </div>
+                <div className="h-3 w-3/4 bg-muted rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {mergeItems.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
