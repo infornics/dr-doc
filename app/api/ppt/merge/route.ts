@@ -141,13 +141,14 @@ export async function POST(req: NextRequest) {
       } else if (isDocx || isPptx) {
         // Convert docx or pptx to pdf via LibreOffice first, then render pages as slides
         const subDir = path.join(tmpDir, `item-${i}`);
-        await fs.mkdir(subDir, { recursive: true });
+        const profileDir = path.join(subDir, "lo-profile");
+        await fs.mkdir(profileDir, { recursive: true });
         const inputFilePath = path.join(subDir, `input.${ext}`);
         await fs.writeFile(inputFilePath, buffer);
 
         try {
           await execAsync(
-            `libreoffice --headless --convert-to pdf "${inputFilePath}" --outdir "${subDir}"`
+            `libreoffice -env:UserInstallation="file://${profileDir}" --headless --convert-to pdf "${inputFilePath}" --outdir "${subDir}"`
           );
           const pdfPath = path.join(subDir, "input.pdf");
           const prefix = path.join(subDir, "page");

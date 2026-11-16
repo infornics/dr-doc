@@ -4,6 +4,8 @@
 import { NextRequest } from "next/server";
 import { POST as mergePptHandler } from "@/app/api/ppt/merge/route";
 import { POST as convertHandler } from "@/app/api/convert/route";
+import { POST as previewHandler } from "@/app/api/preview/route";
+import { Document, Packer, Paragraph, TextRun } from "docx";
 import { PDFDocument } from "pdf-lib";
 import sharp from "sharp";
 import JSZip from "jszip";
@@ -139,6 +141,46 @@ describe("PowerPoint (PPT) Tools Endpoints", () => {
       // Photo is 1 slide, PDF is 1 slide = 2 slides total
       expect(fileNames.some((f) => f.includes("ppt/slides/slide1.xml"))).toBe(true);
       expect(fileNames.some((f) => f.includes("ppt/slides/slide2.xml"))).toBe(true);
+    });
+  });
+
+  describe("DOCX & PPTX Previews (/api/preview)", () => {
+    it("renders a crystal-clear preview for DOCX files without LibreOffice profile conflicts", async () => {
+      const doc = new Document({
+        sections: [
+          {
+            children: [
+              new Paragraph({
+                children: [new TextRun("Project Document Title")],
+              }),
+            ],
+          },
+        ],
+      });
+      const docxBytes = await Packer.toBuffer(doc);
+
+      const formData = new FormData();
+      formData.append(
+        "file",
+        new File([new Uint8Array(docxBytes)], "Project 1.docx", {
+          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        })
+      );
+
+      const req = new NextRequest("http://localhost:3000/api/preview", {
+        method: "POST",
+        body: formData,
+      });
+
+      const res = await previewHandler(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("image/webp");
+
+      const arrayBuf = await res.arrayBuffer();
+      const meta = await sharp(Buffer.from(arrayBuf)).metadata();
+      expect(meta.format).toBe("webp");
+      expect(meta.width).toBeGreaterThan(0);
+      expect(meta.height).toBeGreaterThan(0);
     });
   });
 });

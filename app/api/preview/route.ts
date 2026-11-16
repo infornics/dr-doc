@@ -72,12 +72,23 @@ export async function POST(req: NextRequest) {
     } else if (isDocx || isPptx) {
       // Office document (DOCX, PPTX) preview via LibreOffice conversion to PDF then pdftoppm
       tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-thumb-"));
-      const ext = isDocx ? (fileNameLower.endsWith(".doc") ? "doc" : "docx") : (fileNameLower.endsWith(".ppt") ? "ppt" : "pptx");
+      const profileDir = path.join(tempDir, "lo-profile");
+      await fs.mkdir(profileDir, { recursive: true });
+
+      const ext = isDocx
+        ? fileNameLower.endsWith(".doc")
+          ? "doc"
+          : "docx"
+        : fileNameLower.endsWith(".ppt")
+        ? "ppt"
+        : "pptx";
       const inputDoc = path.join(tempDir, `input.${ext}`);
       const outPrefix = path.join(tempDir, "page");
 
       await fs.writeFile(inputDoc, buffer);
-      await execAsync(`libreoffice --headless --convert-to pdf "${inputDoc}" --outdir "${tempDir}"`);
+      await execAsync(
+        `libreoffice -env:UserInstallation="file://${profileDir}" --headless --convert-to pdf "${inputDoc}" --outdir "${tempDir}"`
+      );
 
       const pdfPath = path.join(tempDir, "input.pdf");
       await execAsync(

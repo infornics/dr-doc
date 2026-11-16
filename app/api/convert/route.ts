@@ -400,10 +400,12 @@ export async function POST(req: NextRequest) {
           await fs.writeFile(pdfPath, buffer);
         } else {
           // First convert docx/doc to pdf via LibreOffice
+          const profileDir = path.join(tmpDir, "lo-profile");
+          await fs.mkdir(profileDir, { recursive: true });
           const docPath = path.join(tmpDir, `input.${ext}`);
           await fs.writeFile(docPath, buffer);
           await execAsync(
-            `libreoffice --headless --convert-to pdf "${docPath}" --outdir "${tmpDir}"`
+            `libreoffice -env:UserInstallation="file://${profileDir}" --headless --convert-to pdf "${docPath}" --outdir "${tmpDir}"`
           );
           pdfPath = path.join(tmpDir, "input.pdf");
         }
@@ -474,12 +476,14 @@ export async function POST(req: NextRequest) {
     if (libreOfficeSources.includes(ext) || targetFormat === "pdf") {
       const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "drdoc-libreoffice-"));
       try {
+        const profileDir = path.join(tmpDir, "lo-profile");
+        await fs.mkdir(profileDir, { recursive: true });
         const inputFilePath = path.join(tmpDir, `input.${ext}`);
         await fs.writeFile(inputFilePath, buffer);
 
         // Run LibreOffice conversion
         await execAsync(
-          `libreoffice --headless --convert-to ${targetFormat} "${inputFilePath}" --outdir "${tmpDir}"`
+          `libreoffice -env:UserInstallation="file://${profileDir}" --headless --convert-to ${targetFormat} "${inputFilePath}" --outdir "${tmpDir}"`
         );
 
         const generatedFiles = (await fs.readdir(tmpDir)).filter(
