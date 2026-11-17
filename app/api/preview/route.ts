@@ -74,30 +74,6 @@ export async function POST(req: NextRequest) {
           "Cache-Control": "public, max-age=86400",
         },
       });
-    } else if (isPdf && !popplerReady) {
-      // PDF without pdftoppm (e.g. serverless) - return styled PDF preview card
-      const svg = `
-        <svg width="800" height="1000" viewBox="0 0 800 1000" xmlns="http://www.w3.org/2000/svg">
-          <rect width="800" height="1000" rx="20" fill="#18181b"/>
-          <rect x="30" y="30" width="740" height="940" rx="16" fill="#27272a" stroke="#3f3f46" stroke-width="2"/>
-          <rect x="60" y="60" width="120" height="36" rx="8" fill="#e11d48"/>
-          <text x="120" y="85" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">PDF DOC</text>
-          <text x="60" y="150" font-family="system-ui, sans-serif" font-size="28" font-weight="bold" fill="#ffffff">${escapeXml(file.name)}</text>
-          <text x="60" y="190" font-family="system-ui, sans-serif" font-size="16" fill="#a1a1aa">PDF Document ready for merging</text>
-          <rect x="60" y="240" width="680" height="2" fill="#3f3f46"/>
-          <rect x="60" y="280" width="540" height="14" rx="4" fill="#3f3f46"/>
-          <rect x="60" y="310" width="600" height="14" rx="4" fill="#3f3f46"/>
-          <rect x="60" y="340" width="480" height="14" rx="4" fill="#3f3f46"/>
-        </svg>
-      `;
-      const thumbBuffer = await sharp(Buffer.from(svg)).webp({ quality: 85 }).toBuffer();
-      return new NextResponse(new Uint8Array(thumbBuffer), {
-        status: 200,
-        headers: {
-          "Content-Type": "image/webp",
-          "Cache-Control": "public, max-age=86400",
-        },
-      });
     } else if ((isDocx || isPptx) && libreOfficeReady && popplerReady) {
       // Office document preview via LibreOffice conversion
       tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-thumb-"));
@@ -148,33 +124,74 @@ export async function POST(req: NextRequest) {
           "Cache-Control": "public, max-age=86400",
         },
       });
-    } else if (isDocx || isPptx) {
-      // Pure JavaScript preview generation for Office documents (Netlify / Serverless fallback)
-      let docTitle = file.name;
-      let snippet = "Slide Document Page";
+    } else if (isDocx || isPptx || isPdf) {
+      // Pure JavaScript preview generation for documents with clean typography cards
+      let docTitle = file.name.replace(/\.[^/.]+$/, "");
+      let paragraphs: string[] = [];
+
       if (isDocx) {
         try {
           const sections = await parseDocxIntoSections(buffer);
           if (sections[0]?.title) docTitle = sections[0].title;
-          if (sections[0]?.paragraphs[0]) snippet = sections[0].paragraphs[0];
+          if (sections[0]?.paragraphs) {
+            paragraphs = sections[0].paragraphs.slice(sections[0].title ? 1 : 0, 7);
+          }
         } catch {}
       }
 
+      const badge = isPdf ? "PDF" : isDocx ? "DOCX" : "PPTX";
+      const badgeColor = isPdf ? "#dc2626" : isDocx ? "#2563eb" : "#ea580c";
+
+      const width = 1200;
+      const height = 800;
+      const safeTitle = escapeXml(docTitle.slice(0, 60));
+      const safeSubtitle = escapeXml(file.name.slice(0, 80));
+
+      const paragraphLines: string[] = [];
+      let currentY = 240;
+
+      for (const p of paragraphs.slice(0, 6)) {
+        if (currentY > height - 80) break;
+        const text = escapeXml(p.slice(0, 80));
+        paragraphLines.push(
+          `<text x="80" y="${currentY}" font-family="DejaVu Sans, Arial, Liberation Sans, sans-serif" font-size="20" fill="#334155">${text}</text>`
+        );
+        currentY += 40;
+      }
+
       const svg = `
-        <svg width="800" height="500" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
-          <rect width="800" height="500" rx="20" fill="#18181b"/>
-          <rect x="30" y="30" width="740" height="440" rx="16" fill="#27272a" stroke="#3f3f46" stroke-width="2"/>
-          <rect x="60" y="60" width="130" height="34" rx="8" fill="#2563eb"/>
-          <text x="125" y="83" font-family="system-ui, sans-serif" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">OFFICE DOC</text>
-          <text x="60" y="145" font-family="system-ui, sans-serif" font-size="24" font-weight="bold" fill="#ffffff">${escapeXml(docTitle.slice(0, 50))}</text>
-          <text x="60" y="185" font-family="system-ui, sans-serif" font-size="15" fill="#a1a1aa">${escapeXml(snippet.slice(0, 90))}</text>
-          <rect x="60" y="230" width="680" height="2" fill="#3f3f46"/>
-          <rect x="60" y="270" width="560" height="12" rx="4" fill="#3f3f46"/>
-          <rect x="60" y="295" width="620" height="12" rx="4" fill="#3f3f46"/>
-          <rect x="60" y="320" width="480" height="12" rx="4" fill="#3f3f46"/>
+        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="cardBg" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#f8fafc"/>
+            </linearGradient>
+          </defs>
+          <rect width="${width}" height="${height}" rx="20" fill="url(#cardBg)"/>
+          <rect x="15" y="15" width="${width - 30}" height="${height - 30}" rx="18" fill="none" stroke="#e2e8f0" stroke-width="3"/>
+
+          <!-- Badge -->
+          <rect x="80" y="60" width="110" height="34" rx="8" fill="${badgeColor}"/>
+          <text x="135" y="83" font-family="DejaVu Sans, Arial, Liberation Sans, sans-serif" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">${badge}</text>
+
+          <!-- Document / Slide Title -->
+          <text x="80" y="145" font-family="DejaVu Sans, Arial, Liberation Sans, sans-serif" font-size="32" font-weight="bold" fill="#0f172a">${safeTitle}</text>
+          <text x="80" y="175" font-family="DejaVu Sans, Arial, Liberation Sans, sans-serif" font-size="16" fill="#64748b">${safeSubtitle}</text>
+
+          <line x1="80" y1="195" x2="${width - 80}" y2="195" stroke="#e2e8f0" stroke-width="2"/>
+
+          <!-- Content Lines -->
+          ${paragraphLines.join("\n")}
+
+          <!-- Footer -->
+          <text x="80" y="${height - 40}" font-family="DejaVu Sans, Arial, Liberation Sans, sans-serif" font-size="14" fill="#94a3b8">Dr. Doc • Document Preview</text>
         </svg>
       `;
-      const thumbBuffer = await sharp(Buffer.from(svg)).webp({ quality: 85 }).toBuffer();
+
+      const thumbBuffer = await sharp(Buffer.from(svg))
+        .webp({ quality: 85 })
+        .toBuffer();
+
       return new NextResponse(new Uint8Array(thumbBuffer), {
         status: 200,
         headers: {

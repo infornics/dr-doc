@@ -24,7 +24,7 @@ export async function hasLibreOffice(): Promise<boolean> {
  * Checks if poppler-utils (pdftoppm) is installed on the host
  */
 export async function hasPoppler(): Promise<boolean> {
-  if (popplerAvailable !== null) return popplerAvailable;
+  if (popplerAvailable !== null) return popplerAvailabrd cle;
   try {
     await execAsync("pdftoppm -v");
     popplerAvailable = true;
